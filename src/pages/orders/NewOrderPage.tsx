@@ -3,11 +3,21 @@ import { Link, useNavigate } from 'react-router-dom';
 import { customersApi, ordersApi } from '../../api';
 import { ApiError, errorMessage } from '../../api/http';
 import { Alert, Field, PageHeader, SegmentedControl } from '../../components/ui';
-import { PAPER_LABELS, PLY_LABELS, PRINT_LABELS, UNIT_LABELS, toOptions } from '../../lib/labels';
-import { formatINR, formatNumber, parseSlashNumbers, todayInputValue } from '../../lib/format';
+import { useI18n, type Translate } from '../../i18n';
+import { parseSlashNumbers, todayInputValue } from '../../lib/format';
 import { computePricing, GST_RATE_PERCENT } from '../../lib/pricing';
 import { useAsync } from '../../lib/useAsync';
-import type { BoxPly, OrderInput, PaperType, PrintType, SizeUnit } from '../../types';
+import {
+  BOX_PLY,
+  PAPER_TYPES,
+  PRINT_TYPES,
+  SIZE_UNITS,
+  type BoxPly,
+  type OrderInput,
+  type PaperType,
+  type PrintType,
+  type SizeUnit,
+} from '../../types';
 
 interface FormState {
   customer: string;
@@ -54,37 +64,36 @@ const INITIAL: FormState = {
 /** A rupee amount above zero with at most 2 decimals. */
 const isRate = (v: string) => /^\d+(\.\d{1,2})?$/.test(v.trim()) && Number(v) > 0;
 const isQuantity = (v: string) => v.trim() !== '' && Number.isInteger(Number(v)) && Number(v) >= 1;
-
-type Errors = Record<string, string>;
-
 const isPositive = (v: string) => v.trim() !== '' && Number(v) > 0;
 const isNonNegative = (v: string) => v.trim() !== '' && Number(v) >= 0;
 
+type Errors = Record<string, string>;
+
 /** Client-side checks; keys match the server's error paths so both render the same way. */
-function validate(form: FormState): Errors {
+function validate(form: FormState, t: Translate): Errors {
   const errors: Errors = {};
-  if (!form.customer) errors.customer = 'Select a customer';
-  if (!form.productName.trim()) errors.productName = 'Enter the product name';
-  if (!isPositive(form.length)) errors['size.length'] = 'Enter length';
-  if (!isPositive(form.width)) errors['size.width'] = 'Enter width';
-  if (!isPositive(form.height)) errors['size.height'] = 'Enter height';
-  if (!form.ply) errors.ply = 'Select 3-ply or 5-ply';
-  if (!form.paperType) errors.paperType = 'Select printed or plain';
-  if (form.paperType === 'printed' && !form.printType) errors.printType = 'Select 4-color or single color';
-  if (!isNonNegative(form.top)) errors['insidePaper.top'] = 'Enter top value';
-  if (!form.fluted.trim()) errors['insidePaper.fluted'] = 'Enter fluted value';
-  else if (!parseSlashNumbers(form.fluted)) errors['insidePaper.fluted'] = 'Use numbers separated by / (e.g. 120/150)';
-  else if (parseSlashNumbers(form.fluted)!.length > 10) errors['insidePaper.fluted'] = 'Enter at most 10 values';
-  if (form.laminated === null) errors.laminated = 'Select yes or no';
+  if (!form.customer) errors.customer = t('v.selectCustomer');
+  if (!form.productName.trim()) errors.productName = t('v.productName');
+  if (!isPositive(form.length)) errors['size.length'] = t('v.length');
+  if (!isPositive(form.width)) errors['size.width'] = t('v.width');
+  if (!isPositive(form.height)) errors['size.height'] = t('v.height');
+  if (!form.ply) errors.ply = t('v.ply');
+  if (!form.paperType) errors.paperType = t('v.paper');
+  if (form.paperType === 'printed' && !form.printType) errors.printType = t('v.print');
+  if (!isNonNegative(form.top)) errors['insidePaper.top'] = t('v.top');
+  if (!form.fluted.trim()) errors['insidePaper.fluted'] = t('v.fluted');
+  else if (!parseSlashNumbers(form.fluted)) errors['insidePaper.fluted'] = t('v.flutedFormat');
+  else if (parseSlashNumbers(form.fluted)!.length > 10) errors['insidePaper.fluted'] = t('v.flutedMax');
+  if (form.laminated === null) errors.laminated = t('v.yesNo');
   if (form.laminated) {
-    if (!isPositive(form.lamLength)) errors['laminationSize.length'] = 'Enter length';
-    if (!isPositive(form.lamWidth)) errors['laminationSize.width'] = 'Enter width';
+    if (!isPositive(form.lamLength)) errors['laminationSize.length'] = t('v.length');
+    if (!isPositive(form.lamWidth)) errors['laminationSize.width'] = t('v.width');
   }
-  if (!isQuantity(form.quantity)) errors.quantity = 'Enter a whole number of at least 1';
-  if (!form.ratePerBox.trim()) errors.ratePerBox = 'Enter the rate per box';
-  else if (!isRate(form.ratePerBox)) errors.ratePerBox = 'Enter an amount above ₹0 with at most 2 decimals';
-  if (form.gstApplicable === null) errors.gstApplicable = 'Select yes or no';
-  if (!form.expectedDeliveryDate) errors.expectedDeliveryDate = 'Select the expected delivery date';
+  if (!isQuantity(form.quantity)) errors.quantity = t('v.quantity');
+  if (!form.ratePerBox.trim()) errors.ratePerBox = t('v.rate');
+  else if (!isRate(form.ratePerBox)) errors.ratePerBox = t('v.rateFormat');
+  if (form.gstApplicable === null) errors.gstApplicable = t('v.yesNo');
+  if (!form.expectedDeliveryDate) errors.expectedDeliveryDate = t('v.deliveryDate');
   return errors;
 }
 
@@ -121,10 +130,11 @@ function AmountSummary({
   rate: string;
   gstApplicable: boolean | null;
 }) {
+  const { t, f } = useI18n();
   if (!isQuantity(quantity) || !isRate(rate)) {
     return (
       <div className="amount-summary amount-summary--empty" aria-live="polite">
-        Enter quantity and rate per box to see the amount.
+        {t('amount.prompt')}
       </div>
     );
   }
@@ -135,30 +145,40 @@ function AmountSummary({
   return (
     <dl className="amount-summary" aria-live="polite">
       <div className="amount-summary__row">
-        <dt>
-          {formatNumber(qty)} boxes × {formatINR(p.ratePerBox)}
-        </dt>
-        <dd className="num">{formatINR(p.subtotal)}</dd>
+        <dt>{t('amount.line', { boxes: f.boxes(qty), rate: f.inr(p.ratePerBox) })}</dt>
+        <dd className="num">{f.inr(p.subtotal)}</dd>
       </div>
       <div className="amount-summary__row">
-        <dt>{gstApplicable === null ? 'GST (choose above)' : gstApplicable ? `GST ${GST_RATE_PERCENT}%` : 'GST not applicable'}</dt>
-        <dd className="num">{formatINR(p.gstAmount)}</dd>
+        <dt>
+          {gstApplicable === null
+            ? t('amount.gstChoose')
+            : gstApplicable
+              ? t('amount.gstRate', { rate: GST_RATE_PERCENT })
+              : t('amount.gstNone')}
+        </dt>
+        <dd className="num">{f.inr(p.gstAmount)}</dd>
       </div>
       <div className="amount-summary__row amount-summary__total">
-        <dt>Final amount</dt>
-        <dd className="num">{formatINR(p.total)}</dd>
+        <dt>{t('amount.final')}</dt>
+        <dd className="num">{f.inr(p.total)}</dd>
       </div>
     </dl>
   );
 }
 
 export function NewOrderPage() {
+  const { t, f } = useI18n();
   const navigate = useNavigate();
   const customers = useAsync(() => customersApi.list(), []);
   const [form, setForm] = useState<FormState>(INITIAL);
   const [errors, setErrors] = useState<Errors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const yesNo = [
+    { value: 'yes' as const, label: t('common.yes') },
+    { value: 'no' as const, label: t('common.no') },
+  ];
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K], errorKey: string = key) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -188,10 +208,10 @@ export function NewOrderPage() {
     event.preventDefault();
     setSubmitError(null);
 
-    const clientErrors = validate(form);
+    const clientErrors = validate(form, t);
     setErrors(clientErrors);
     if (Object.keys(clientErrors).length > 0) {
-      setSubmitError('Please fill in all the highlighted fields.');
+      setSubmitError(t('newOrder.fixFields'));
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -199,7 +219,7 @@ export function NewOrderPage() {
     setSubmitting(true);
     try {
       const order = await ordersApi.create(toInput(form));
-      navigate('/orders', { state: { flash: `Order ${order.orderNumber} placed successfully.` } });
+      navigate('/orders', { state: { flash: t('orders.placed', { number: order.orderNumber }) } });
     } catch (error) {
       if (error instanceof ApiError && Object.keys(error.fieldErrors).length > 0) {
         setErrors(error.fieldErrors);
@@ -214,25 +234,21 @@ export function NewOrderPage() {
 
   return (
     <div className="page page--narrow">
-      <PageHeader
-        back={{ to: '/orders', label: 'Orders' }}
-        title="New order"
-        subtitle="Choose the customer, describe the box, and place the order."
-      />
+      <PageHeader back={{ to: '/orders', label: t('nav.orders') }} title={t('newOrder.title')} subtitle={t('newOrder.subtitle')} />
 
       <form className="form" onSubmit={handleSubmit} noValidate>
         {submitError && <Alert>{submitError}</Alert>}
 
         <section className="panel form-section">
-          <h2 className="form-section__title">Customer &amp; product</h2>
-          <Field label="Select customer" htmlFor="customer" error={errors.customer}>
+          <h2 className="form-section__title">{t('newOrder.sectionCustomer')}</h2>
+          <Field label={t('newOrder.selectCustomer')} htmlFor="customer" error={errors.customer}>
             <select
               id="customer"
               value={form.customer}
               onChange={(e) => set('customer', e.target.value)}
               disabled={customers.loading}
             >
-              <option value="">{customers.loading ? 'Loading customers…' : 'Choose a customer'}</option>
+              <option value="">{customers.loading ? t('newOrder.loadingCustomers') : t('newOrder.chooseCustomer')}</option>
               {customers.data?.map((c) => (
                 <option key={c._id} value={c._id}>
                   {c.name}
@@ -244,16 +260,16 @@ export function NewOrderPage() {
           {customers.error && <Alert>{customers.error}</Alert>}
           {noCustomers && (
             <p className="muted">
-              No customers yet. <Link to="/customers">Add a customer</Link> first.
+              {t('newOrder.noCustomers')} <Link to="/customers">{t('newOrder.addCustomer')}</Link>
             </p>
           )}
-          <Field label="Product name" htmlFor="productName" error={errors.productName}>
+          <Field label={t('newOrder.productName')} htmlFor="productName" error={errors.productName}>
             <input
               id="productName"
               type="text"
               autoComplete="off"
               maxLength={120}
-              placeholder="e.g. Mango juice 1L carton"
+              placeholder={t('newOrder.productPlaceholder')}
               value={form.productName}
               onChange={(e) => set('productName', e.target.value)}
             />
@@ -261,14 +277,14 @@ export function NewOrderPage() {
         </section>
 
         <section className="panel form-section">
-          <h2 className="form-section__title">Box details</h2>
+          <h2 className="form-section__title">{t('newOrder.sectionBox')}</h2>
 
           <fieldset className="size-row">
-            <legend className="field__label">Size</legend>
+            <legend className="field__label">{t('newOrder.size')}</legend>
             {(['length', 'width', 'height'] as const).map((dim) => (
               <div className={`field ${errors[`size.${dim}`] ? 'field--error' : ''}`} key={dim}>
                 <label className="field__sublabel" htmlFor={dim}>
-                  {dim[0].toUpperCase() + dim.slice(1)}
+                  {t(`newOrder.${dim}`)}
                 </label>
                 <input
                   id={dim}
@@ -284,12 +300,12 @@ export function NewOrderPage() {
             ))}
             <div className="field">
               <label className="field__sublabel" htmlFor="unit">
-                Unit
+                {t('newOrder.unit')}
               </label>
               <select id="unit" value={form.unit} onChange={(e) => set('unit', e.target.value as SizeUnit)}>
-                {toOptions(UNIT_LABELS).map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
+                {SIZE_UNITS.map((u) => (
+                  <option key={u} value={u}>
+                    {f.unit(u)}
                   </option>
                 ))}
               </select>
@@ -297,22 +313,19 @@ export function NewOrderPage() {
           </fieldset>
 
           <div className="grid-2">
-            <Field label="Box type" error={errors.ply}>
+            <Field label={t('newOrder.boxType')} error={errors.ply}>
               <SegmentedControl
-                label="Box type"
-                options={toOptions(PLY_LABELS)}
+                label={t('newOrder.boxType')}
+                options={BOX_PLY.map((p) => ({ value: p, label: t(`ply.${p}`) }))}
                 value={form.ply}
                 onChange={(v) => set('ply', v)}
               />
             </Field>
 
-            <Field label="Laminated" error={errors.laminated}>
+            <Field label={t('newOrder.laminated')} error={errors.laminated}>
               <SegmentedControl
-                label="Laminated"
-                options={[
-                  { value: 'yes', label: 'Yes' },
-                  { value: 'no', label: 'No' },
-                ]}
+                label={t('newOrder.laminated')}
+                options={yesNo}
                 value={form.laminated === null ? null : form.laminated ? 'yes' : 'no'}
                 onChange={setLaminated}
               />
@@ -321,16 +334,16 @@ export function NewOrderPage() {
 
           {form.laminated && (
             <fieldset className="pair-row">
-              <legend className="field__label">Lamination size</legend>
+              <legend className="field__label">{t('newOrder.laminationSize')}</legend>
               {(
                 [
-                  ['lamLength', 'Length', 'laminationSize.length'],
-                  ['lamWidth', 'Width', 'laminationSize.width'],
+                  ['lamLength', 'newOrder.length', 'laminationSize.length'],
+                  ['lamWidth', 'newOrder.width', 'laminationSize.width'],
                 ] as const
               ).map(([key, label, errorKey], i) => (
                 <div className={`field ${errors[errorKey] ? 'field--error' : ''}`} key={key}>
                   <label className="field__sublabel" htmlFor={key}>
-                    {label}
+                    {t(label)}
                   </label>
                   <div className="pair-row__input">
                     {i === 1 && (
@@ -347,7 +360,7 @@ export function NewOrderPage() {
                       value={form[key]}
                       onChange={(e) => set(key, e.target.value, errorKey)}
                     />
-                    {i === 1 && <span className="pair-row__unit">{UNIT_LABELS[form.unit]}</span>}
+                    {i === 1 && <span className="pair-row__unit">{f.unit(form.unit)}</span>}
                   </div>
                   {errors[errorKey] && <p className="field__error">{errors[errorKey]}</p>}
                 </div>
@@ -358,23 +371,23 @@ export function NewOrderPage() {
         </section>
 
         <section className="panel form-section">
-          <h2 className="form-section__title">Paper</h2>
+          <h2 className="form-section__title">{t('newOrder.sectionPaper')}</h2>
 
           <div className="grid-2">
-            <Field label="Paper type" error={errors.paperType}>
+            <Field label={t('newOrder.paperType')} error={errors.paperType}>
               <SegmentedControl
-                label="Paper type"
-                options={toOptions(PAPER_LABELS)}
+                label={t('newOrder.paperType')}
+                options={PAPER_TYPES.map((p) => ({ value: p, label: t(`paper.${p}`) }))}
                 value={form.paperType}
                 onChange={setPaperType}
               />
             </Field>
 
             {form.paperType === 'printed' && (
-              <Field label="Printing" error={errors.printType}>
+              <Field label={t('newOrder.printing')} error={errors.printType}>
                 <SegmentedControl
-                  label="Printing"
-                  options={toOptions(PRINT_LABELS)}
+                  label={t('newOrder.printing')}
+                  options={PRINT_TYPES.map((p) => ({ value: p, label: t(`print.${p}`) }))}
                   value={form.printType}
                   onChange={(v) => set('printType', v)}
                 />
@@ -383,7 +396,7 @@ export function NewOrderPage() {
           </div>
 
           <div className="grid-2">
-            <Field label="Inside paper — Top" htmlFor="top" error={errors['insidePaper.top']}>
+            <Field label={t('newOrder.insideTop')} htmlFor="top" error={errors['insidePaper.top']}>
               <input
                 id="top"
                 type="number"
@@ -395,16 +408,16 @@ export function NewOrderPage() {
               />
             </Field>
             <Field
-              label="Inside paper — Fluted"
+              label={t('newOrder.insideFluted')}
               htmlFor="fluted"
               error={errors['insidePaper.fluted']}
-              hint="One value, or several separated by / (e.g. 120/150/160)"
+              hint={t('newOrder.flutedHint')}
             >
               <input
                 id="fluted"
                 type="text"
                 autoComplete="off"
-                placeholder="e.g. 120/150"
+                placeholder={t('newOrder.flutedPlaceholder')}
                 value={form.fluted}
                 // Only digits, decimal point, slash and spaces can be typed.
                 onChange={(e) => set('fluted', e.target.value.replace(/[^0-9./\s]/g, ''), 'insidePaper.fluted')}
@@ -414,9 +427,9 @@ export function NewOrderPage() {
         </section>
 
         <section className="panel form-section">
-          <h2 className="form-section__title">Quantity, price &amp; delivery</h2>
+          <h2 className="form-section__title">{t('newOrder.sectionQty')}</h2>
           <div className="grid-2">
-            <Field label="Quantity (boxes)" htmlFor="quantity" error={errors.quantity}>
+            <Field label={t('newOrder.quantity')} htmlFor="quantity" error={errors.quantity}>
               <input
                 id="quantity"
                 type="number"
@@ -427,7 +440,7 @@ export function NewOrderPage() {
                 onChange={(e) => set('quantity', e.target.value)}
               />
             </Field>
-            <Field label="Rate per box" htmlFor="ratePerBox" error={errors.ratePerBox}>
+            <Field label={t('newOrder.rate')} htmlFor="ratePerBox" error={errors.ratePerBox}>
               <div className="input-prefix">
                 <span aria-hidden="true">₹</span>
                 <input
@@ -444,12 +457,12 @@ export function NewOrderPage() {
             </Field>
           </div>
 
-          <Field label="Applicable GST" error={errors.gstApplicable}>
+          <Field label={t('newOrder.gst')} error={errors.gstApplicable}>
             <SegmentedControl
-              label="Applicable GST"
+              label={t('newOrder.gst')}
               options={[
-                { value: 'yes', label: `Yes (${GST_RATE_PERCENT}%)` },
-                { value: 'no', label: 'No' },
+                { value: 'yes', label: t('newOrder.gstYes', { rate: GST_RATE_PERCENT }) },
+                { value: 'no', label: t('common.no') },
               ]}
               value={form.gstApplicable === null ? null : form.gstApplicable ? 'yes' : 'no'}
               onChange={(v) => set('gstApplicable', v === 'yes')}
@@ -458,7 +471,7 @@ export function NewOrderPage() {
 
           <AmountSummary quantity={form.quantity} rate={form.ratePerBox} gstApplicable={form.gstApplicable} />
 
-          <Field label="Expected delivery date" htmlFor="expectedDeliveryDate" error={errors.expectedDeliveryDate}>
+          <Field label={t('newOrder.deliveryDate')} htmlFor="expectedDeliveryDate" error={errors.expectedDeliveryDate}>
             <input
               id="expectedDeliveryDate"
               type="date"
@@ -479,10 +492,10 @@ export function NewOrderPage() {
               setSubmitError(null);
             }}
           >
-            Clear
+            {t('newOrder.clear')}
           </button>
           <button type="submit" className="button button--primary button--lg" disabled={submitting}>
-            {submitting ? 'Placing order…' : 'Place order'}
+            {submitting ? t('newOrder.submitting') : t('newOrder.submit')}
           </button>
         </div>
       </form>

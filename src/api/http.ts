@@ -1,3 +1,5 @@
+import { translate, translateServerMessage } from '../i18n';
+
 export class ApiError extends Error {
   status: number;
   fieldErrors: Record<string, string>;
@@ -28,7 +30,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw new ApiError(0, 'Cannot reach the server. Check that the API is running.');
+    throw new ApiError(0, translate('err.network'));
   }
 
   const text = await response.text();
@@ -47,10 +49,14 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
   if (!response.ok) {
     const payload = (data ?? {}) as { message?: string; errors?: Record<string, string> };
+    // The server speaks English; show its known messages in the person's language.
+    const fieldErrors = Object.fromEntries(
+      Object.entries(payload.errors ?? {}).map(([field, message]) => [field, translateServerMessage(message)]),
+    );
     throw new ApiError(
       response.status,
-      payload.message ?? `Request failed (${response.status})`,
-      payload.errors ?? {},
+      payload.message ? translateServerMessage(payload.message) : translate('err.requestFailed', { status: response.status }),
+      fieldErrors,
     );
   }
 
@@ -65,5 +71,4 @@ export const http = {
   delete: (path: string) => request<void>('DELETE', path),
 };
 
-export const errorMessage = (error: unknown) =>
-  error instanceof Error ? error.message : 'Something went wrong';
+export const errorMessage = (error: unknown) => (error instanceof Error ? error.message : translate('err.generic'));

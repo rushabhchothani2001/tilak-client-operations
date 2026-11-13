@@ -2,6 +2,7 @@ import type {
   CreateUserInput,
   Customer,
   CustomerInput,
+  Language,
   UpdateUserInput,
   User,
   ManufacturingOrder,
@@ -25,6 +26,7 @@ export const authApi = {
   me: () => http.get<User>('/auth/me'),
   login: (username: string, password: string) => http.post<User>('/auth/login', { username, password }),
   logout: () => http.post<void>('/auth/logout', {}),
+  setLanguage: (language: Language) => http.patch<User>('/auth/me/preferences', { language }),
 };
 
 export const usersApi = {

@@ -1,34 +1,27 @@
+import { useI18n } from '../i18n';
+import { formatFluted } from '../lib/format';
 import type { OrderSpec } from '../types';
-import {
-  formatDate,
-  formatFluted,
-  formatLaminated,
-  formatLaminationSize,
-  formatNumber,
-  formatPaper,
-  formatPly,
-  formatSize,
-} from '../lib/format';
-
-/** One-line summary of an order's box: "14 × 10 × 8 inch · 3 Ply · Plain · Laminated". */
-export function specSummary(order: OrderSpec) {
-  return [formatSize(order.size), formatPly(order), formatPaper(order), formatLaminated(order) || null]
-    .filter(Boolean)
-    .join(' · ');
-}
 
 /** The box specification of an order. Contains no customer information. */
 export function OrderSpecList({ order }: { order: OrderSpec }) {
+  const { t, f } = useI18n();
   const rows: [string, string][] = [
-    ['Product', order.productName || '—'],
-    ['Size (L × W × H)', formatSize(order.size)],
-    ['Box type', formatPly(order)],
-    ['Paper', formatPaper(order)],
-    ['Inside paper — top', String(order.insidePaper.top)],
-    ['Inside paper — fluted', formatFluted(order.insidePaper.fluted)],
-    ['Laminated', order.laminated ? (order.laminationSize ? `Yes · ${formatLaminationSize(order)}` : 'Yes') : 'No'],
-    ['Quantity', `${formatNumber(order.quantity)} boxes`],
-    ['Expected delivery', formatDate(order.expectedDeliveryDate)],
+    [t('spec.product'), order.productName || '—'],
+    [t('spec.size'), f.size(order.size)],
+    [t('spec.boxType'), f.ply(order)],
+    [t('spec.paper'), f.paper(order)],
+    [t('spec.insideTop'), String(order.insidePaper.top)],
+    [t('spec.insideFluted'), formatFluted(order.insidePaper.fluted)],
+    [
+      t('spec.laminated'),
+      order.laminated
+        ? order.laminationSize
+          ? `${t('common.yes')} · ${f.laminationSize(order)}`
+          : t('common.yes')
+        : t('common.no'),
+    ],
+    [t('spec.quantity'), f.boxes(order.quantity)],
+    [t('spec.expectedDelivery'), f.date(order.expectedDeliveryDate)],
   ];
 
   return (

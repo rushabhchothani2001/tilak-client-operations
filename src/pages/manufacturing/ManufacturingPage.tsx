@@ -2,45 +2,48 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { manufacturingApi, type ManufacturingFilter } from '../../api';
 import { Icon } from '../../components/icons';
-import { specSummary } from '../../components/OrderSpecList';
 import { Alert, EmptyState, LoadingState, PageHeader, SegmentedControl, StageProgress } from '../../components/ui';
-import { daysUntil, formatDate, formatNumber } from '../../lib/format';
+import { useI18n } from '../../i18n';
+import { daysUntil } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
 import { FINAL_STATUS } from '../../types';
 
-const FILTERS: { value: ManufacturingFilter; label: string }[] = [
-  { value: 'active', label: 'In production' },
-  { value: 'ready_to_shipment', label: 'Ready' },
-  { value: 'all', label: 'All' },
-];
-
 function DueLabel({ date, done }: { date: string; done: boolean }) {
+  const { t, f } = useI18n();
   const days = daysUntil(date);
-  if (done || days > 3) return <span>Due {formatDate(date)}</span>;
-  if (days < 0) return <span className="due-late">Overdue {-days}d · {formatDate(date)}</span>;
-  if (days === 0) return <span className="due-soon">Due today</span>;
-  return <span className="due-soon">Due in {days}d · {formatDate(date)}</span>;
+  const formatted = f.date(date);
+  if (done || days > 3) return <span>{t('due.date', { date: formatted })}</span>;
+  if (days < 0) return <span className="due-late">{t('due.late', { days: -days, date: formatted })}</span>;
+  if (days === 0) return <span className="due-soon">{t('due.today')}</span>;
+  return <span className="due-soon">{t('due.soon', { days, date: formatted })}</span>;
 }
 
 export function ManufacturingPage() {
+  const { t, tn, f } = useI18n();
   const [filter, setFilter] = useState<ManufacturingFilter>('active');
   const orders = useAsync(() => manufacturingApi.list(filter), [filter]);
   const count = orders.data?.length ?? 0;
 
+  const filters: { value: ManufacturingFilter; label: string }[] = [
+    { value: 'active', label: t('mfg.filter.active') },
+    { value: 'ready_to_shipment', label: t('mfg.filter.ready') },
+    { value: 'all', label: t('mfg.filter.all') },
+  ];
+
   return (
     <div className="page">
       <PageHeader
-        title="Manufacturing"
-        subtitle={orders.data ? `${count} ${count === 1 ? 'order' : 'orders'} · earliest delivery first` : undefined}
+        title={t('mfg.title')}
+        subtitle={orders.data ? t('mfg.subtitle', { count: tn('orders.count', count) }) : undefined}
         actions={
           <button type="button" className="button button--secondary" onClick={orders.reload}>
-            Refresh
+            {t('common.refresh')}
           </button>
         }
       />
 
       <div className="toolbar">
-        <SegmentedControl label="Show orders" options={FILTERS} value={filter} onChange={setFilter} variant="filter" />
+        <SegmentedControl label={t('mfg.filter')} options={filters} value={filter} onChange={setFilter} variant="filter" />
       </div>
 
       {orders.error && <Alert>{orders.error}</Alert>}
@@ -48,7 +51,7 @@ export function ManufacturingPage() {
       {orders.loading && !orders.data ? (
         <LoadingState />
       ) : orders.data && orders.data.length === 0 ? (
-        <EmptyState title={filter === 'active' ? 'Nothing in production right now.' : 'No orders here.'} />
+        <EmptyState title={filter === 'active' ? t('mfg.emptyActive') : t('mfg.empty')} />
       ) : (
         <ul className="panel row-list">
           {orders.data?.map((order) => {
@@ -60,14 +63,14 @@ export function ManufacturingPage() {
                     <div className="row-item__line">
                       <span className="row-title">{order.orderNumber}</span>
                       <span className="row-item__figure num">
-                        {formatNumber(order.quantity)} boxes
+                        {f.boxes(order.quantity)}
                         {order.producedQuantity !== null && (
-                          <span className="subline"> · {formatNumber(order.producedQuantity)} made</span>
+                          <span className="subline"> · {t('mfg.made', { n: f.number(order.producedQuantity) })}</span>
                         )}
                       </span>
                     </div>
                     {order.productName && <div className="row-item__spec">{order.productName}</div>}
-                    <div className={order.productName ? 'row-item__sub' : 'row-item__spec'}>{specSummary(order)}</div>
+                    <div className={order.productName ? 'row-item__sub' : 'row-item__spec'}>{f.spec(order)}</div>
                     <div className="row-item__sub">
                       <DueLabel date={order.expectedDeliveryDate} done={done} />
                     </div>

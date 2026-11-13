@@ -1,10 +1,9 @@
 import { FormEvent, useState } from 'react';
 import { usersApi } from '../../api';
 import { ApiError, errorMessage } from '../../api/http';
-import { ROLE_LABELS } from '../../auth/AuthContext';
 import { Alert, Field, SegmentedControl } from '../../components/ui';
-import { toOptions } from '../../lib/labels';
-import type { UpdateUserInput, User, UserRole } from '../../types';
+import { LANGUAGES, useI18n } from '../../i18n';
+import { USER_ROLES, type Language, type UpdateUserInput, type User, type UserRole } from '../../types';
 
 const USERNAME_REGEX = /^[a-z0-9._-]{3,30}$/;
 
@@ -19,10 +18,13 @@ export function UserForm({
   onSaved: (user: User) => void;
   onCancel: () => void;
 }) {
+  const { t, lang } = useI18n();
   const editing = Boolean(user);
   const [name, setName] = useState(user?.name ?? '');
   const [username, setUsername] = useState(user?.username ?? '');
   const [role, setRole] = useState<UserRole>(user?.role ?? 'worker');
+  // New people default to the language the admin is using; edits keep the saved one.
+  const [language, setLanguage] = useState<Language>(user?.language ?? lang);
   const [active, setActive] = useState(user?.active ?? true);
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -31,11 +33,10 @@ export function UserForm({
 
   const validate = () => {
     const next: Record<string, string> = {};
-    if (!name.trim()) next.name = 'Name is required';
-    if (!editing && !USERNAME_REGEX.test(username.trim().toLowerCase()))
-      next.username = '3–30 characters: letters, numbers, dot, dash or underscore';
-    if (!editing && password.length < 8) next.password = 'Password must be at least 8 characters';
-    if (editing && password && password.length < 8) next.password = 'Password must be at least 8 characters';
+    if (!name.trim()) next.name = t('v.name');
+    if (!editing && !USERNAME_REGEX.test(username.trim().toLowerCase())) next.username = t('v.username');
+    if (!editing && password.length < 8) next.password = t('v.password');
+    if (editing && password && password.length < 8) next.password = t('v.password');
     return next;
   };
 
@@ -50,7 +51,7 @@ export function UserForm({
     try {
       let saved: User;
       if (user) {
-        const changes: UpdateUserInput = { name: name.trim(), role, active };
+        const changes: UpdateUserInput = { name: name.trim(), role, active, language };
         if (password) changes.password = password;
         saved = await usersApi.update(user._id, changes);
       } else {
@@ -59,6 +60,7 @@ export function UserForm({
           username: username.trim().toLowerCase(),
           password,
           role,
+          language,
         });
       }
       onSaved(saved);
@@ -74,14 +76,14 @@ export function UserForm({
       {submitError && <Alert>{submitError}</Alert>}
 
       <div className="grid-2">
-        <Field label="Full name *" htmlFor="userName" error={errors.name}>
+        <Field label={t('uform.fullName')} htmlFor="userName" error={errors.name}>
           <input id="userName" autoFocus value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
         <Field
-          label="Username *"
+          label={t('uform.username')}
           htmlFor="username"
           error={errors.username}
-          hint={editing ? 'Username cannot be changed' : 'Used to log in'}
+          hint={editing ? t('uform.usernameFixed') : t('uform.usernameHint')}
         >
           <input
             id="username"
@@ -96,27 +98,32 @@ export function UserForm({
 
       <div className="grid-2">
         <Field
-          label="Role"
+          label={t('uform.role')}
           error={errors.role}
-          hint={role === 'admin' ? 'Full access to all modules' : 'Manufacturing module only'}
+          hint={role === 'admin' ? t('uform.roleAdminHint') : t('uform.roleWorkerHint')}
         >
           {isSelf ? (
-            <p className="note">You can't change your own role.</p>
+            <p className="note">{t('uform.ownRole')}</p>
           ) : (
-            <SegmentedControl label="Role" options={toOptions(ROLE_LABELS)} value={role} onChange={setRole} />
+            <SegmentedControl
+              label={t('uform.role')}
+              options={USER_ROLES.map((r) => ({ value: r, label: t(`role.${r}`) }))}
+              value={role}
+              onChange={setRole}
+            />
           )}
         </Field>
 
         {editing && (
-          <Field label="Account status" hint={active ? 'Can log in' : 'Cannot log in'}>
+          <Field label={t('uform.status')} hint={active ? t('uform.canLogin') : t('uform.cannotLogin')}>
             {isSelf ? (
-              <p className="note">You can't disable your own account.</p>
+              <p className="note">{t('uform.ownStatus')}</p>
             ) : (
               <SegmentedControl
-                label="Account status"
+                label={t('uform.status')}
                 options={[
-                  { value: 'active', label: 'Active' },
-                  { value: 'disabled', label: 'Disabled' },
+                  { value: 'active', label: t('users.active') },
+                  { value: 'disabled', label: t('users.disabled') },
                 ]}
                 value={active ? 'active' : 'disabled'}
                 onChange={(v) => setActive(v === 'active')}
@@ -126,11 +133,20 @@ export function UserForm({
         )}
       </div>
 
+      <Field label={t('common.language')} error={errors.language} hint={t('uform.languageHint')}>
+        <SegmentedControl
+          label={t('common.language')}
+          options={LANGUAGES.map((l) => ({ value: l.code, label: l.label }))}
+          value={language}
+          onChange={setLanguage}
+        />
+      </Field>
+
       <Field
-        label={editing ? 'New password' : 'Password *'}
+        label={editing ? t('uform.newPassword') : t('uform.password')}
         htmlFor="newPassword"
         error={errors.password}
-        hint={editing ? 'Leave blank to keep the current password. Changing it signs the user out.' : 'At least 8 characters'}
+        hint={editing ? t('uform.passwordEditHint') : t('uform.passwordHint')}
       >
         <input
           id="newPassword"
@@ -143,10 +159,10 @@ export function UserForm({
 
       <div className="form-actions">
         <button type="button" className="button button--secondary" onClick={onCancel}>
-          Cancel
+          {t('common.cancel')}
         </button>
         <button type="submit" className="button button--primary" disabled={saving}>
-          {saving ? 'Saving…' : editing ? 'Save changes' : 'Add user'}
+          {saving ? t('common.saving') : editing ? t('common.saveChanges') : t('users.add')}
         </button>
       </div>
     </form>

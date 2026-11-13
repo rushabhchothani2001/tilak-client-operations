@@ -123,11 +123,15 @@ export interface StatusUpdateInput {
 export const USER_ROLES = ['admin', 'worker'] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
+export type Language = 'en' | 'hi' | 'gu';
+
 export interface User {
   _id: string;
   name: string;
   username: string;
   role: UserRole;
+  /** Saved app language; null until chosen. */
+  language: Language | null;
   active: boolean;
   lastLoginAt: string | null;
   createdAt: string;
@@ -138,11 +142,13 @@ export interface CreateUserInput {
   username: string;
   password: string;
   role: UserRole;
+  language?: Language;
 }
 
 export interface UpdateUserInput {
   name?: string;
   role?: UserRole;
+  language?: Language;
   active?: boolean;
   password?: string;
 }

@@ -3,6 +3,7 @@ import { customersApi } from '../../api';
 import { errorMessage } from '../../api/http';
 import { Icon } from '../../components/icons';
 import { Alert, EmptyState, LoadingState, Modal, PageHeader } from '../../components/ui';
+import { useI18n } from '../../i18n';
 import { useAsync } from '../../lib/useAsync';
 import type { Customer } from '../../types';
 import { CustomerForm } from './CustomerForm';
@@ -12,6 +13,7 @@ type Editing = { mode: 'create' } | { mode: 'edit'; customer: Customer } | null;
 const telHref = (phone: string) => `tel:${phone.replace(/[^+\d]/g, '')}`;
 
 export function CustomersPage() {
+  const { t, tn } = useI18n();
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<Editing>(null);
@@ -20,24 +22,24 @@ export function CustomersPage() {
 
   // Debounce the search box.
   useEffect(() => {
-    const t = setTimeout(() => setSearch(searchInput.trim()), 250);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setSearch(searchInput.trim()), 250);
+    return () => clearTimeout(timer);
   }, [searchInput]);
 
   const handleSaved = (customer: Customer) => {
     setMessage({
       tone: 'success',
-      text: editing?.mode === 'edit' ? `${customer.name} updated.` : `${customer.name} added.`,
+      text: editing?.mode === 'edit' ? t('customers.updated', { name: customer.name }) : t('customers.added', { name: customer.name }),
     });
     setEditing(null);
     customers.reload();
   };
 
   const handleDelete = async (customer: Customer) => {
-    if (!window.confirm(`Delete customer "${customer.name}"? This cannot be undone.`)) return;
+    if (!window.confirm(t('customers.confirmDelete', { name: customer.name }))) return;
     try {
       await customersApi.remove(customer._id);
-      setMessage({ tone: 'success', text: `${customer.name} deleted.` });
+      setMessage({ tone: 'success', text: t('customers.deleted', { name: customer.name }) });
       setEditing(null);
       customers.reload();
     } catch (error) {
@@ -51,12 +53,12 @@ export function CustomersPage() {
   return (
     <div className="page">
       <PageHeader
-        title="Customers"
-        subtitle={customers.data ? `${count} ${count === 1 ? 'customer' : 'customers'}${search ? ' found' : ''}` : undefined}
+        title={t('customers.title')}
+        subtitle={customers.data ? tn('customers.count', count) : undefined}
         actions={
           <button type="button" className="button button--primary" onClick={() => setEditing({ mode: 'create' })}>
             <Icon name="plus" size={18} />
-            Add customer
+            {t('customers.add')}
           </button>
         }
       />
@@ -66,10 +68,10 @@ export function CustomersPage() {
       <div className="toolbar">
         <label className="search">
           <Icon name="search" size={16} />
-          <span className="visually-hidden">Search customers</span>
+          <span className="visually-hidden">{t('customers.search')}</span>
           <input
             type="search"
-            placeholder="Search name, company, phone or GST"
+            placeholder={t('customers.searchPlaceholder')}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
           />
@@ -81,10 +83,10 @@ export function CustomersPage() {
       {customers.loading && !customers.data ? (
         <LoadingState />
       ) : customers.data && customers.data.length === 0 ? (
-        <EmptyState title={search ? 'No customers match your search.' : 'No customers yet.'}>
+        <EmptyState title={search ? t('customers.noMatch') : t('customers.empty')}>
           {!search && (
             <button type="button" className="button button--primary" onClick={() => setEditing({ mode: 'create' })}>
-              Add the first customer
+              {t('customers.addFirst')}
             </button>
           )}
         </EmptyState>
@@ -94,11 +96,11 @@ export function CustomersPage() {
             <table className="table hide-phone">
               <thead>
                 <tr>
-                  <th>Customer</th>
-                  <th>Phone</th>
-                  <th>GST number</th>
-                  <th>Address</th>
-                  <th aria-label="Actions" />
+                  <th>{t('customers.col.customer')}</th>
+                  <th>{t('customers.col.phone')}</th>
+                  <th>{t('customers.col.gst')}</th>
+                  <th>{t('customers.col.address')}</th>
+                  <th aria-label={t('common.actions')} />
                 </tr>
               </thead>
               <tbody>
@@ -116,7 +118,7 @@ export function CustomersPage() {
                     <td className="address-cell">{c.address || <span className="dash">—</span>}</td>
                     <td className="row-actions">
                       <button type="button" className="link-button" onClick={() => setEditing({ mode: 'edit', customer: c })}>
-                        Edit
+                        {t('common.edit')}
                       </button>
                     </td>
                   </tr>
@@ -134,10 +136,10 @@ export function CustomersPage() {
                   >
                     <span className="row-title">{c.name}</span>
                     <span className="row-item__sub">
-                      {[c.companyName, c.gstNumber].filter(Boolean).join(' · ') || 'No company or GST'}
+                      {[c.companyName, c.gstNumber].filter(Boolean).join(' · ') || t('customers.noCompany')}
                     </span>
                   </button>
-                  <a className="button button--secondary button--icon" href={telHref(c.phone)} aria-label={`Call ${c.name}`}>
+                  <a className="button button--secondary button--icon" href={telHref(c.phone)} aria-label={t('customers.call', { name: c.name })}>
                     <Icon name="phone" size={18} />
                   </a>
                 </li>
@@ -148,7 +150,7 @@ export function CustomersPage() {
       )}
 
       {editing && (
-        <Modal title={editing.mode === 'edit' ? 'Edit customer' : 'Add customer'} onClose={() => setEditing(null)}>
+        <Modal title={editing.mode === 'edit' ? t('customers.editTitle') : t('customers.add')} onClose={() => setEditing(null)}>
           <CustomerForm
             customer={editing.mode === 'edit' ? editing.customer : undefined}
             onSaved={handleSaved}

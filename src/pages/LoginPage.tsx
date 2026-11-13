@@ -2,7 +2,9 @@ import { FormEvent, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { errorMessage } from '../api/http';
 import { homePathFor, useAuth } from '../auth/AuthContext';
-import { Alert, Field } from '../components/ui';
+import { LanguagePicker } from '../components/LanguagePicker';
+import { Alert, Field, LoadingState } from '../components/ui';
+import { useI18n } from '../i18n';
 import type { UserRole } from '../types';
 
 const ADMIN_ONLY_PREFIXES = ['/orders', '/customers', '/users'];
@@ -16,6 +18,7 @@ function destinationFor(role: UserRole, from: string | undefined) {
 
 export function LoginPage() {
   const { user, loading, login, sessionExpired } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from;
@@ -25,14 +28,14 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  if (loading) return <div className="state">Loading…</div>;
+  if (loading) return <LoadingState />;
   if (user) return <Navigate to={destinationFor(user.role, from)} replace />;
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
     if (!username.trim() || !password) {
-      setError('Enter your username and password.');
+      setError(t('login.missing'));
       return;
     }
     setSubmitting(true);
@@ -48,25 +51,25 @@ export function LoginPage() {
   return (
     <div className="login">
       <div className="login__panel">
+        <LanguagePicker />
         <img className="login__logo" src="/logo.png" alt="Tilak Industries" width={168} height={89} />
-        <h1 className="login__title">Log in</h1>
-        <p className="login__subtitle">Orders, production and customers.</p>
+        <h1 className="login__title">{t('login.title')}</h1>
+        <p className="login__subtitle">{t('login.subtitle')}</p>
 
         <form className="form" onSubmit={handleSubmit} noValidate>
-          {sessionExpired && !error && <Alert>Your session has expired. Please log in again.</Alert>}
+          {sessionExpired && !error && <Alert>{t('err.sessionExpired')}</Alert>}
           {error && <Alert>{error}</Alert>}
 
-          <Field label="Username" htmlFor="username">
+          <Field label={t('login.username')} htmlFor="username">
             <input
               id="username"
               autoComplete="username"
               autoCapitalize="none"
-              autoFocus
               value={username}
               onChange={(e) => setUsername(e.target.value)}
             />
           </Field>
-          <Field label="Password" htmlFor="password">
+          <Field label={t('login.password')} htmlFor="password">
             <input
               id="password"
               type="password"
@@ -77,11 +80,11 @@ export function LoginPage() {
           </Field>
 
           <button type="submit" className="button button--primary button--lg button--block" disabled={submitting}>
-            {submitting ? 'Signing in…' : 'Log in'}
+            {submitting ? t('login.submitting') : t('login.submit')}
           </button>
         </form>
 
-        <p className="login__footnote">Forgot your password? Ask the admin to reset it.</p>
+        <p className="login__footnote">{t('login.forgot')}</p>
       </div>
     </div>
   );

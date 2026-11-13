@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import { LoadingState } from '../components/ui';
 import type { UserRole } from '../types';
 import { homePathFor, useAuth } from './AuthContext';
 
@@ -8,7 +9,7 @@ export function RequireAuth({ roles, children }: { roles?: UserRole[]; children:
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) return <div className="state">Loading…</div>;
+  if (loading) return <LoadingState />;
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   if (roles && !roles.includes(user.role)) return <Navigate to={homePathFor(user.role)} replace />;
 

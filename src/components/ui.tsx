@@ -1,7 +1,7 @@
 import { ReactNode, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FINAL_STATUS, WORKER_STATUSES, type OrderStatus } from '../types';
-import { STATUS_LABELS } from '../lib/labels';
+import { useI18n } from '../i18n';
 import { Icon } from './icons';
 
 export function PageHeader({
@@ -112,15 +112,16 @@ export function stagesDone(status: OrderStatus): number {
 
 /** The order's journey through the factory: its status and six steps, filled up to where it is. */
 export function StageProgress({ status, compact = false }: { status: OrderStatus; compact?: boolean }) {
+  const { t, f } = useI18n();
   const done = stagesDone(status);
   const complete = status === FINAL_STATUS;
   return (
     <div className={`stage ${compact ? 'stage--compact' : ''}`}>
-      <span className="stage__label">{STATUS_LABELS[status]}</span>
+      <span className="stage__label">{f.status(status)}</span>
       <span
         className="stage__bar"
         role="img"
-        aria-label={`Step ${done} of ${WORKER_STATUSES.length}`}
+        aria-label={t('stage.step', { done, total: WORKER_STATUSES.length })}
       >
         {WORKER_STATUSES.map((s, i) => (
           <i key={s} className={i < done ? (complete ? 'is-complete' : 'is-done') : undefined} />
@@ -131,11 +132,12 @@ export function StageProgress({ status, compact = false }: { status: OrderStatus
 }
 
 export function StatusBadge({ status }: { status: OrderStatus }) {
+  const { f } = useI18n();
   const tone = status === 'order_placed' ? 'waiting' : status === FINAL_STATUS ? 'complete' : 'progress';
   return (
     <span className={`badge badge--${tone}`}>
       <span className="badge__dot" aria-hidden="true" />
-      {STATUS_LABELS[status]}
+      {f.status(status)}
     </span>
   );
 }
@@ -149,8 +151,9 @@ export function Alert({ tone = 'error', children }: { tone?: 'error' | 'success'
   );
 }
 
-export function LoadingState({ label = 'Loading…' }: { label?: string }) {
-  return <div className="state">{label}</div>;
+export function LoadingState({ label }: { label?: string }) {
+  const { t } = useI18n();
+  return <div className="state">{label ?? t('common.loading')}</div>;
 }
 
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
@@ -171,6 +174,7 @@ export function Modal({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -189,7 +193,7 @@ export function Modal({
       <div className="modal" role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal__header">
           <h2>{title}</h2>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+          <button type="button" className="icon-button" onClick={onClose} aria-label={t('common.close')}>
             <Icon name="close" size={20} />
           </button>
         </div>
@@ -201,26 +205,27 @@ export function Modal({
 
 /** Ordered vs produced quantity, side by side. */
 export function QuantityCompare({ ordered, produced }: { ordered: number; produced: number | null }) {
+  const { t, f } = useI18n();
   const diff = produced === null ? null : produced - ordered;
   return (
     <dl className="qty-compare">
       <div className="qty-compare__cell">
-        <dt>Ordered</dt>
-        <dd className="num">{ordered.toLocaleString('en-IN')}</dd>
+        <dt>{t('qty.ordered')}</dt>
+        <dd className="num">{f.number(ordered)}</dd>
       </div>
       <div className="qty-compare__cell">
-        <dt>Produced</dt>
-        <dd className="num">{produced === null ? <span className="dash">—</span> : produced.toLocaleString('en-IN')}</dd>
+        <dt>{t('qty.produced')}</dt>
+        <dd className="num">{produced === null ? <span className="dash">—</span> : f.number(produced)}</dd>
       </div>
       <div className="qty-compare__cell">
-        <dt>Difference</dt>
+        <dt>{t('qty.difference')}</dt>
         <dd className={`num ${diff !== null && diff < 0 ? 'is-short' : ''}`}>
           {diff === null ? (
             <span className="dash">—</span>
           ) : diff === 0 ? (
-            'Exact'
+            t('qty.exact')
           ) : (
-            `${diff > 0 ? '+' : '−'}${Math.abs(diff).toLocaleString('en-IN')}`
+            `${diff > 0 ? '+' : '−'}${f.number(Math.abs(diff))}`
           )}
         </dd>
       </div>
