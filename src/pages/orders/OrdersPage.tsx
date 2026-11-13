@@ -4,7 +4,7 @@ import { ordersApi } from '../../api';
 import { Icon } from '../../components/icons';
 import { specSummary } from '../../components/OrderSpecList';
 import { Alert, EmptyState, LoadingState, PageHeader, StageProgress } from '../../components/ui';
-import { formatDate, formatNumber, formatSize, formatPly, formatPaper } from '../../lib/format';
+import { formatDate, formatINR, formatNumber, formatSize, formatPly, formatPaper } from '../../lib/format';
 import { STATUS_LABELS } from '../../lib/labels';
 import { useAsync } from '../../lib/useAsync';
 import { ORDER_STATUSES, type OrderStatus } from '../../types';
@@ -83,6 +83,7 @@ export function OrdersPage() {
                   <th>Product</th>
                   <th className="num">Ordered</th>
                   <th className="num">Produced</th>
+                  <th className="num">Amount</th>
                   <th className="num">Delivery</th>
                   <th>Progress</th>
                 </tr>
@@ -116,6 +117,16 @@ export function OrdersPage() {
                     <td className="num">
                       {order.producedQuantity === null ? <span className="dash">—</span> : formatNumber(order.producedQuantity)}
                     </td>
+                    <td className="num nowrap">
+                      {order.pricing ? (
+                        <>
+                          <div>{formatINR(order.pricing.total)}</div>
+                          <div className="subline">{order.pricing.gstApplicable ? `incl. ${order.pricing.gstRate}% GST` : 'No GST'}</div>
+                        </>
+                      ) : (
+                        <span className="dash">—</span>
+                      )}
+                    </td>
                     <td className="num nowrap">{formatDate(order.expectedDeliveryDate)}</td>
                     <td>
                       <StageProgress status={order.status} />
@@ -137,7 +148,8 @@ export function OrdersPage() {
                       </div>
                       {order.productName && <div className="row-item__spec">{order.productName}</div>}
                       <div className="row-item__sub">
-                        {order.customer?.name ?? '—'} · Due {formatDate(order.expectedDeliveryDate)}
+                        {order.customer?.name ?? '—'}
+                        {order.pricing ? ` · ${formatINR(order.pricing.total)}` : ''} · Due {formatDate(order.expectedDeliveryDate)}
                       </div>
                       <div className="row-item__sub">{specSummary(order)}</div>
                       <StageProgress status={order.status} compact />

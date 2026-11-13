@@ -894,6 +894,16 @@ li.row-item .row-item__button {
   overflow-wrap: anywhere;
 }
 
+.spec-list__row--total dt {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.spec-list__row--total dd {
+  font-size: 18px;
+  font-weight: 600;
+}
+
 .spec-list dd a {
   text-decoration: none;
   border-bottom: 1px solid var(--control);
@@ -1218,6 +1228,73 @@ select:disabled {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+/* ₹ before the rate input */
+.input-prefix {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-prefix > span {
+  position: absolute;
+  left: 12px;
+  color: var(--muted);
+  font-size: 15px;
+  pointer-events: none;
+}
+
+.input-prefix > input[type='text'] {
+  padding-left: 28px;
+}
+
+/* Quantity × rate, GST and final amount */
+.amount-summary {
+  margin: 0;
+  padding: 14px 16px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.amount-summary--empty {
+  color: var(--muted);
+}
+
+.amount-summary__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.amount-summary dt {
+  color: var(--muted);
+}
+
+.amount-summary dd {
+  margin: 0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.amount-summary__total {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.amount-summary__total dt {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.amount-summary__total dd {
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 600;
 }
 
 .form-actions__left {

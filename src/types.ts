@@ -66,6 +66,20 @@ export interface OrderSpec {
 
 export interface OrderInput extends OrderSpec {
   customer: string;
+  /** Rupees per box. */
+  ratePerBox: number;
+  gstApplicable: boolean;
+}
+
+/** Commercial details of an order, in rupees. Admin only; computed by the server. */
+export interface OrderPricing {
+  ratePerBox: number;
+  gstApplicable: boolean;
+  /** GST percentage used for this order (0 when not applicable). */
+  gstRate: number;
+  subtotal: number;
+  gstAmount: number;
+  total: number;
 }
 
 export interface StatusHistoryEntry {
@@ -89,6 +103,8 @@ export interface ManufacturingOrder extends OrderSpec {
 /** What the admin sees: the order with its customer. */
 export interface Order<C = CustomerSummary> extends ManufacturingOrder {
   customer: C | null;
+  /** Missing on orders placed before pricing existed. */
+  pricing?: OrderPricing | null;
 }
 
 export interface StatusUpdateInput {

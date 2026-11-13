@@ -4,7 +4,8 @@ import { customersApi, ordersApi } from '../../api';
 import { ApiError, errorMessage } from '../../api/http';
 import { Alert, Field, PageHeader, SegmentedControl } from '../../components/ui';
 import { PAPER_LABELS, PLY_LABELS, PRINT_LABELS, UNIT_LABELS, toOptions } from '../../lib/labels';
-import { parseSlashNumbers, todayInputValue } from '../../lib/format';
+import { formatINR, formatNumber, parseSlashNumbers, todayInputValue } from '../../lib/format';
+import { computePricing, GST_RATE_PERCENT } from '../../lib/pricing';
 import { useAsync } from '../../lib/useAsync';
 import type { BoxPly, OrderInput, PaperType, PrintType, SizeUnit } from '../../types';
 
@@ -22,6 +23,8 @@ interface FormState {
   fluted: string;
   laminated: boolean | null;
   quantity: string;
+  ratePerBox: string;
+  gstApplicable: boolean | null;
   expectedDeliveryDate: string;
 }
 
@@ -39,8 +42,14 @@ const INITIAL: FormState = {
   fluted: '',
   laminated: null,
   quantity: '',
+  ratePerBox: '',
+  gstApplicable: null,
   expectedDeliveryDate: '',
 };
+
+/** A rupee amount above zero with at most 2 decimals. */
+const isRate = (v: string) => /^\d+(\.\d{1,2})?$/.test(v.trim()) && Number(v) > 0;
+const isQuantity = (v: string) => v.trim() !== '' && Number.isInteger(Number(v)) && Number(v) >= 1;
 
 type Errors = Record<string, string>;
 
@@ -63,8 +72,10 @@ function validate(form: FormState): Errors {
   else if (!parseSlashNumbers(form.fluted)) errors['insidePaper.fluted'] = 'Use numbers separated by / (e.g. 120/150)';
   else if (parseSlashNumbers(form.fluted)!.length > 10) errors['insidePaper.fluted'] = 'Enter at most 10 values';
   if (form.laminated === null) errors.laminated = 'Select yes or no';
-  if (!form.quantity.trim() || !Number.isInteger(Number(form.quantity)) || Number(form.quantity) < 1)
-    errors.quantity = 'Enter a whole number of at least 1';
+  if (!isQuantity(form.quantity)) errors.quantity = 'Enter a whole number of at least 1';
+  if (!form.ratePerBox.trim()) errors.ratePerBox = 'Enter the rate per box';
+  else if (!isRate(form.ratePerBox)) errors.ratePerBox = 'Enter an amount above ₹0 with at most 2 decimals';
+  if (form.gstApplicable === null) errors.gstApplicable = 'Select yes or no';
   if (!form.expectedDeliveryDate) errors.expectedDeliveryDate = 'Select the expected delivery date';
   return errors;
 }
@@ -85,8 +96,51 @@ function toInput(form: FormState): OrderInput {
     insidePaper: { top: Number(form.top), fluted: parseSlashNumbers(form.fluted)! },
     laminated: form.laminated!,
     quantity: Number(form.quantity),
+    ratePerBox: Number(form.ratePerBox),
+    gstApplicable: form.gstApplicable!,
     expectedDeliveryDate: form.expectedDeliveryDate,
   };
+}
+
+/** Live calculation: quantity × rate, GST, and the final amount. */
+function AmountSummary({
+  quantity,
+  rate,
+  gstApplicable,
+}: {
+  quantity: string;
+  rate: string;
+  gstApplicable: boolean | null;
+}) {
+  if (!isQuantity(quantity) || !isRate(rate)) {
+    return (
+      <div className="amount-summary amount-summary--empty" aria-live="polite">
+        Enter quantity and rate per box to see the amount.
+      </div>
+    );
+  }
+
+  const qty = Number(quantity);
+  const p = computePricing(qty, Number(rate), gstApplicable === true);
+
+  return (
+    <dl className="amount-summary" aria-live="polite">
+      <div className="amount-summary__row">
+        <dt>
+          {formatNumber(qty)} boxes × {formatINR(p.ratePerBox)}
+        </dt>
+        <dd className="num">{formatINR(p.subtotal)}</dd>
+      </div>
+      <div className="amount-summary__row">
+        <dt>{gstApplicable === null ? 'GST (choose above)' : gstApplicable ? `GST ${GST_RATE_PERCENT}%` : 'GST not applicable'}</dt>
+        <dd className="num">{formatINR(p.gstAmount)}</dd>
+      </div>
+      <div className="amount-summary__row amount-summary__total">
+        <dt>Final amount</dt>
+        <dd className="num">{formatINR(p.total)}</dd>
+      </div>
+    </dl>
+  );
 }
 
 export function NewOrderPage() {
@@ -300,7 +354,7 @@ export function NewOrderPage() {
         </section>
 
         <section className="panel form-section">
-          <h2 className="form-section__title">Quantity &amp; delivery</h2>
+          <h2 className="form-section__title">Quantity, price &amp; delivery</h2>
           <div className="grid-2">
             <Field label="Quantity (boxes)" htmlFor="quantity" error={errors.quantity}>
               <input
@@ -313,16 +367,46 @@ export function NewOrderPage() {
                 onChange={(e) => set('quantity', e.target.value)}
               />
             </Field>
-            <Field label="Expected delivery date" htmlFor="expectedDeliveryDate" error={errors.expectedDeliveryDate}>
-              <input
-                id="expectedDeliveryDate"
-                type="date"
-                min={todayInputValue()}
-                value={form.expectedDeliveryDate}
-                onChange={(e) => set('expectedDeliveryDate', e.target.value)}
-              />
+            <Field label="Rate per box" htmlFor="ratePerBox" error={errors.ratePerBox}>
+              <div className="input-prefix">
+                <span aria-hidden="true">₹</span>
+                <input
+                  id="ratePerBox"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  placeholder="0.00"
+                  value={form.ratePerBox}
+                  // Digits and one decimal point only.
+                  onChange={(e) => set('ratePerBox', e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+                />
+              </div>
             </Field>
           </div>
+
+          <Field label="Applicable GST" error={errors.gstApplicable}>
+            <SegmentedControl
+              label="Applicable GST"
+              options={[
+                { value: 'yes', label: `Yes (${GST_RATE_PERCENT}%)` },
+                { value: 'no', label: 'No' },
+              ]}
+              value={form.gstApplicable === null ? null : form.gstApplicable ? 'yes' : 'no'}
+              onChange={(v) => set('gstApplicable', v === 'yes')}
+            />
+          </Field>
+
+          <AmountSummary quantity={form.quantity} rate={form.ratePerBox} gstApplicable={form.gstApplicable} />
+
+          <Field label="Expected delivery date" htmlFor="expectedDeliveryDate" error={errors.expectedDeliveryDate}>
+            <input
+              id="expectedDeliveryDate"
+              type="date"
+              min={todayInputValue()}
+              value={form.expectedDeliveryDate}
+              onChange={(e) => set('expectedDeliveryDate', e.target.value)}
+            />
+          </Field>
         </section>
 
         <div className="form-actions">

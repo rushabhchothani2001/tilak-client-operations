@@ -15,6 +15,15 @@ export const formatDate = (iso: string) => dateFormatter.format(new Date(iso));
 export const formatDateTime = (iso: string) => dateTimeFormatter.format(new Date(iso));
 export const formatNumber = (n: number) => numberFormatter.format(n);
 
+const inrFormatter = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+/** 13125 → "₹13,125.00" */
+export const formatINR = (rupees: number) => inrFormatter.format(rupees);
+
 export const formatSize = (size: BoxSize) =>
   `${size.length} × ${size.width} × ${size.height} ${size.unit}`;
 
