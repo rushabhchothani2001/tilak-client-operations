@@ -1230,6 +1230,45 @@ select:disabled {
   gap: 10px;
 }
 
+/* Lamination size: [length] × [width] unit */
+.pair-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+  max-width: 420px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.pair-row legend {
+  padding: 0;
+  margin-bottom: 8px;
+}
+
+.pair-row__input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pair-row__times {
+  margin-left: -16px;
+  width: 8px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.pair-row__unit {
+  flex: none;
+  color: var(--muted);
+}
+
+.pair-row__error {
+  grid-column: 1 / -1;
+}
+
 /* ₹ before the rate input */
 .input-prefix {
   position: relative;

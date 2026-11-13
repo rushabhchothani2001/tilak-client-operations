@@ -44,7 +44,17 @@ export const parseSlashNumbers = (input: string): number[] | null => {
   return numbers.every((n) => Number.isFinite(n) && n >= 0) ? numbers : null;
 };
 
-export const formatPly =(spec: Pick<OrderSpec, 'ply'>) => PLY_LABELS[spec.ply];
+export const formatPly = (spec: Pick<OrderSpec, 'ply'>) => PLY_LABELS[spec.ply];
+
+/** "12 × 15 inch", or '' when there is no lamination size. */
+export const formatLaminationSize = (spec: Pick<OrderSpec, 'laminationSize'>) =>
+  spec.laminationSize
+    ? `${spec.laminationSize.length} × ${spec.laminationSize.width}${spec.laminationSize.unit ? ` ${spec.laminationSize.unit}` : ''}`
+    : '';
+
+/** "Laminated 12 × 15 inch", "Laminated", or '' when not laminated. */
+export const formatLaminated = (spec: Pick<OrderSpec, 'laminated' | 'laminationSize'>) =>
+  spec.laminated ? `Laminated${spec.laminationSize ? ` ${formatLaminationSize(spec)}` : ''}` : '';
 
 /** Today's date as yyyy-mm-dd in the user's local timezone (for <input type="date" min>). */
 export const todayInputValue = () => {

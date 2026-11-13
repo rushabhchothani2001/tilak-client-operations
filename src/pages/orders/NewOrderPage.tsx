@@ -22,6 +22,8 @@ interface FormState {
   top: string;
   fluted: string;
   laminated: boolean | null;
+  lamLength: string;
+  lamWidth: string;
   quantity: string;
   ratePerBox: string;
   gstApplicable: boolean | null;
@@ -41,6 +43,8 @@ const INITIAL: FormState = {
   top: '',
   fluted: '',
   laminated: null,
+  lamLength: '',
+  lamWidth: '',
   quantity: '',
   ratePerBox: '',
   gstApplicable: null,
@@ -72,6 +76,10 @@ function validate(form: FormState): Errors {
   else if (!parseSlashNumbers(form.fluted)) errors['insidePaper.fluted'] = 'Use numbers separated by / (e.g. 120/150)';
   else if (parseSlashNumbers(form.fluted)!.length > 10) errors['insidePaper.fluted'] = 'Enter at most 10 values';
   if (form.laminated === null) errors.laminated = 'Select yes or no';
+  if (form.laminated) {
+    if (!isPositive(form.lamLength)) errors['laminationSize.length'] = 'Enter length';
+    if (!isPositive(form.lamWidth)) errors['laminationSize.width'] = 'Enter width';
+  }
   if (!isQuantity(form.quantity)) errors.quantity = 'Enter a whole number of at least 1';
   if (!form.ratePerBox.trim()) errors.ratePerBox = 'Enter the rate per box';
   else if (!isRate(form.ratePerBox)) errors.ratePerBox = 'Enter an amount above ₹0 with at most 2 decimals';
@@ -95,6 +103,7 @@ function toInput(form: FormState): OrderInput {
     printType: form.paperType === 'printed' ? form.printType : null,
     insidePaper: { top: Number(form.top), fluted: parseSlashNumbers(form.fluted)! },
     laminated: form.laminated!,
+    laminationSize: form.laminated ? { length: Number(form.lamLength), width: Number(form.lamWidth) } : null,
     quantity: Number(form.quantity),
     ratePerBox: Number(form.ratePerBox),
     gstApplicable: form.gstApplicable!,
@@ -159,6 +168,20 @@ export function NewOrderPage() {
   const setPaperType = (paperType: PaperType) => {
     setForm((prev) => ({ ...prev, paperType, printType: paperType === 'plain' ? null : prev.printType }));
     setErrors(({ paperType: _p, printType: _t, ...rest }) => rest);
+  };
+
+  // Choosing "No" clears the lamination size so a stale size is never saved.
+  const setLaminated = (value: 'yes' | 'no') => {
+    const laminated = value === 'yes';
+    setForm((prev) => ({
+      ...prev,
+      laminated,
+      lamLength: laminated ? prev.lamLength : '',
+      lamWidth: laminated ? prev.lamWidth : '',
+    }));
+    setErrors(
+      ({ laminated: _l, laminationSize: _s, 'laminationSize.length': _a, 'laminationSize.width': _b, ...rest }) => rest,
+    );
   };
 
   const handleSubmit = async (event: FormEvent) => {
@@ -291,10 +314,47 @@ export function NewOrderPage() {
                   { value: 'no', label: 'No' },
                 ]}
                 value={form.laminated === null ? null : form.laminated ? 'yes' : 'no'}
-                onChange={(v) => set('laminated', v === 'yes')}
+                onChange={setLaminated}
               />
             </Field>
           </div>
+
+          {form.laminated && (
+            <fieldset className="pair-row">
+              <legend className="field__label">Lamination size</legend>
+              {(
+                [
+                  ['lamLength', 'Length', 'laminationSize.length'],
+                  ['lamWidth', 'Width', 'laminationSize.width'],
+                ] as const
+              ).map(([key, label, errorKey], i) => (
+                <div className={`field ${errors[errorKey] ? 'field--error' : ''}`} key={key}>
+                  <label className="field__sublabel" htmlFor={key}>
+                    {label}
+                  </label>
+                  <div className="pair-row__input">
+                    {i === 1 && (
+                      <span className="pair-row__times" aria-hidden="true">
+                        ×
+                      </span>
+                    )}
+                    <input
+                      id={key}
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="any"
+                      value={form[key]}
+                      onChange={(e) => set(key, e.target.value, errorKey)}
+                    />
+                    {i === 1 && <span className="pair-row__unit">{UNIT_LABELS[form.unit]}</span>}
+                  </div>
+                  {errors[errorKey] && <p className="field__error">{errors[errorKey]}</p>}
+                </div>
+              ))}
+              {errors.laminationSize && <p className="field__error pair-row__error">{errors.laminationSize}</p>}
+            </fieldset>
+          )}
         </section>
 
         <section className="panel form-section">

@@ -4,7 +4,7 @@ import { ordersApi } from '../../api';
 import { Icon } from '../../components/icons';
 import { specSummary } from '../../components/OrderSpecList';
 import { Alert, EmptyState, LoadingState, PageHeader, StageProgress } from '../../components/ui';
-import { formatDate, formatINR, formatNumber, formatSize, formatPly, formatPaper } from '../../lib/format';
+import { formatDate, formatINR, formatLaminated, formatNumber, formatSize, formatPly, formatPaper } from '../../lib/format';
 import { STATUS_LABELS } from '../../lib/labels';
 import { useAsync } from '../../lib/useAsync';
 import { ORDER_STATUSES, type OrderStatus } from '../../types';
@@ -110,7 +110,7 @@ export function OrdersPage() {
                       <div>{order.productName || <span className="dash">No product name</span>}</div>
                       <div className="subline">
                         {formatSize(order.size)} · {formatPly(order)} · {formatPaper(order)}
-                        {order.laminated ? ' · Laminated' : ''}
+                        {order.laminated ? ` · ${formatLaminated(order)}` : ''}
                       </div>
                     </td>
                     <td className="num">{formatNumber(order.quantity)}</td>

@@ -50,6 +50,12 @@ export interface BoxSize {
   unit: SizeUnit;
 }
 
+export interface LaminationSize {
+  length: number;
+  width: number;
+  unit?: SizeUnit;
+}
+
 export interface OrderSpec {
   /** Empty on orders placed before the field existed. */
   productName: string;
@@ -60,6 +66,8 @@ export interface OrderSpec {
   /** fluted holds one value per flute layer, e.g. [120, 150] shown as "120/150". */
   insidePaper: { top: number; fluted: number[] };
   laminated: boolean;
+  /** Lamination sheet size, only when laminated. The server sets the unit from the box size. */
+  laminationSize?: LaminationSize | null;
   quantity: number;
   expectedDeliveryDate: string;
 }
