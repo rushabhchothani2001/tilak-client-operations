@@ -41,6 +41,12 @@ npm run dev        # http://localhost:5173
 
 Login sessions use an httpOnly cookie, so the app and API should be served from the same site.
 
+## Deployment (Vercel)
+
+`vercel.json` forwards every `/api/*` request to the API on Render and sends all other paths to `index.html` (so page refreshes work). If the API's Render URL changes, update the `destination` in `vercel.json`.
+
+Full steps for Vercel, Render and MongoDB Atlas are in the server repo's [DEPLOYMENT.md](https://github.com/rushabhchothani2001/tilak-server-oprations/blob/main/DEPLOYMENT.md).
+
 ## Project structure
 
 ```
