@@ -1,10 +1,11 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { manufacturingApi } from '../../api';
 import { ApiError, errorMessage } from '../../api/http';
-import { OrderSpecList } from '../../components/OrderSpecList';
+import { OrderSpecList, specSummary } from '../../components/OrderSpecList';
 import { StatusTimeline } from '../../components/StatusTimeline';
-import { Alert, LoadingState, PageHeader, QuantityCompare, StatusBadge } from '../../components/ui';
+import { Alert, LoadingState, PageHeader, QuantityCompare, stagesDone } from '../../components/ui';
+import { formatDate } from '../../lib/format';
 import { STATUS_LABELS } from '../../lib/labels';
 import { useAsync } from '../../lib/useAsync';
 import { FINAL_STATUS, WORKER_STATUSES, type WorkerStatus } from '../../types';
@@ -31,16 +32,16 @@ export function ManufacturingOrderPage() {
   if (order.error || !order.data)
     return (
       <div className="page">
+        <PageHeader title="Order" back={{ to: '/manufacturing', label: 'Manufacturing' }} />
         <Alert>{order.error ?? 'Order not found'}</Alert>
-        <Link to="/manufacturing">Back to orders</Link>
       </div>
     );
 
   const o = order.data;
   const isFinal = status === FINAL_STATUS;
   const producedNumber = produced.trim() === '' ? null : Number(produced);
-  const unchanged =
-    status === o.status && (!isFinal || producedNumber === o.producedQuantity);
+  const unchanged = status === o.status && (!isFinal || producedNumber === o.producedQuantity);
+  const currentStep = stagesDone(o.status);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -48,7 +49,7 @@ export function ManufacturingOrderPage() {
     setSuccess(null);
 
     if (!status) {
-      setError('Select a status.');
+      setError('Choose a status.');
       return;
     }
     if (isFinal && (producedNumber === null || !Number.isInteger(producedNumber) || producedNumber < 0)) {
@@ -74,7 +75,7 @@ export function ManufacturingOrderPage() {
         producedQuantity: isFinal ? producedNumber : null,
       });
       order.setData(updated);
-      setSuccess(`Status updated to "${STATUS_LABELS[updated.status]}".`);
+      setSuccess(`Saved: ${STATUS_LABELS[updated.status]}.`);
     } catch (err) {
       const fieldMsg = err instanceof ApiError ? Object.values(err.fieldErrors)[0] : undefined;
       setError(fieldMsg ?? errorMessage(err));
@@ -86,43 +87,37 @@ export function ManufacturingOrderPage() {
   return (
     <div className="page">
       <PageHeader
+        back={{ to: '/manufacturing', label: 'Manufacturing' }}
         title={`Order ${o.orderNumber}`}
-        subtitle="Order details for production"
-        actions={
-          <Link to="/manufacturing" className="button button--ghost">
-            Back to orders
-          </Link>
-        }
+        subtitle={`${specSummary(o)} · ${o.quantity.toLocaleString('en-IN')} boxes · Due ${formatDate(o.expectedDeliveryDate)}`}
       />
 
-      <div className="detail-grid">
-        <div className="stack">
-          <section className="card card--padded">
-            <div className="card__head">
-              <h2>Order details</h2>
-              <StatusBadge status={o.status} />
-            </div>
-            <OrderSpecList order={o} />
+      <div className="detail-grid detail-grid--action-first">
+        <div className="stack detail-grid__info">
+          <section className="panel panel--padded">
+            <h2 className="panel__title">Quantity</h2>
+            <QuantityCompare ordered={o.quantity} produced={o.producedQuantity} />
           </section>
 
-          <section className="card card--padded">
-            <h2>Quantity</h2>
-            <QuantityCompare ordered={o.quantity} produced={o.producedQuantity} />
+          <section className="panel panel--padded">
+            <h2 className="panel__title">Box specification</h2>
+            <OrderSpecList order={o} />
           </section>
         </div>
 
-        <div className="stack">
-          <form className="card card--padded" onSubmit={handleSubmit}>
-            <h2>Update status</h2>
+        <div className="stack detail-grid__action">
+          <form className="panel panel--padded" onSubmit={handleSubmit}>
+            <h2 className="panel__title">Update status</h2>
             {error && <Alert>{error}</Alert>}
             {success && <Alert tone="success">{success}</Alert>}
 
-            <div className="status-options" role="radiogroup" aria-label="Production status">
+            <div className="steps" role="radiogroup" aria-label="Production status">
               {WORKER_STATUSES.map((s, index) => {
                 const selected = status === s;
+                const passed = index < currentStep;
                 return (
-                  <div key={s} className={`status-option ${selected ? 'is-selected' : ''}`}>
-                    <label className="status-option__label">
+                  <div key={s} className={`step ${selected ? 'is-selected' : ''} ${passed ? 'is-passed' : ''}`}>
+                    <label className="step__label">
                       <input
                         type="radio"
                         name="status"
@@ -133,25 +128,29 @@ export function ManufacturingOrderPage() {
                           setSuccess(null);
                         }}
                       />
-                      <span className="status-option__step">{index + 1}</span>
+                      <span className="step__number" aria-hidden="true">
+                        {index + 1}
+                      </span>
                       <span>{STATUS_LABELS[s]}</span>
                     </label>
 
                     {s === FINAL_STATUS && selected && (
-                      <div className="status-option__extra">
+                      <div className="step__extra">
                         <label htmlFor="producedQuantity">Quantity produced</label>
-                        <input
-                          id="producedQuantity"
-                          type="number"
-                          inputMode="numeric"
-                          min="0"
-                          step="1"
-                          autoFocus
-                          placeholder={String(o.quantity)}
-                          value={produced}
-                          onChange={(e) => setProduced(e.target.value)}
-                        />
-                        <span className="muted small">of {o.quantity.toLocaleString('en-IN')} ordered</span>
+                        <div className="step__qty">
+                          <input
+                            id="producedQuantity"
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            step="1"
+                            autoFocus
+                            placeholder={String(o.quantity)}
+                            value={produced}
+                            onChange={(e) => setProduced(e.target.value)}
+                          />
+                          <span className="subline">of {o.quantity.toLocaleString('en-IN')} ordered</span>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -159,13 +158,13 @@ export function ManufacturingOrderPage() {
               })}
             </div>
 
-            <button type="submit" className="button button--primary button--lg button--block" disabled={saving || unchanged}>
-              {saving ? 'Saving…' : 'Save Status'}
+            <button type="submit" className="button button--primary button--block button--lg" disabled={saving || unchanged}>
+              {saving ? 'Saving…' : unchanged ? 'No changes' : 'Save status'}
             </button>
           </form>
 
-          <section className="card card--padded">
-            <h2>Status history</h2>
+          <section className="panel panel--padded">
+            <h2 className="panel__title">Status history</h2>
             <StatusTimeline history={o.statusHistory} />
           </section>
         </div>

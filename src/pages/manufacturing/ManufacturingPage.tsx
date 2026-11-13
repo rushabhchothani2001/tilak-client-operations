@@ -1,38 +1,46 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { manufacturingApi, type ManufacturingFilter } from '../../api';
-import { Alert, EmptyState, LoadingState, PageHeader, SegmentedControl, StatusBadge } from '../../components/ui';
-import { daysUntil, formatDate, formatNumber, formatPaper, formatPly, formatSize } from '../../lib/format';
+import { Icon } from '../../components/icons';
+import { specSummary } from '../../components/OrderSpecList';
+import { Alert, EmptyState, LoadingState, PageHeader, SegmentedControl, StageProgress } from '../../components/ui';
+import { daysUntil, formatDate, formatNumber } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
+import { FINAL_STATUS } from '../../types';
 
 const FILTERS: { value: ManufacturingFilter; label: string }[] = [
   { value: 'active', label: 'In production' },
-  { value: 'ready_to_shipment', label: 'Ready for shipment' },
-  { value: 'all', label: 'All orders' },
+  { value: 'ready_to_shipment', label: 'Ready' },
+  { value: 'all', label: 'All' },
 ];
 
 function DueLabel({ date, done }: { date: string; done: boolean }) {
   const days = daysUntil(date);
-  if (done) return <span className="muted">Due {formatDate(date)}</span>;
-  if (days < 0) return <span className="due due--late">Overdue by {-days}d · {formatDate(date)}</span>;
-  if (days === 0) return <span className="due due--soon">Due today</span>;
-  if (days <= 3) return <span className="due due--soon">Due in {days}d · {formatDate(date)}</span>;
-  return <span className="muted">Due {formatDate(date)}</span>;
+  if (done || days > 3) return <span>Due {formatDate(date)}</span>;
+  if (days < 0) return <span className="due-late">Overdue {-days}d · {formatDate(date)}</span>;
+  if (days === 0) return <span className="due-soon">Due today</span>;
+  return <span className="due-soon">Due in {days}d · {formatDate(date)}</span>;
 }
 
 export function ManufacturingPage() {
   const [filter, setFilter] = useState<ManufacturingFilter>('active');
   const orders = useAsync(() => manufacturingApi.list(filter), [filter]);
+  const count = orders.data?.length ?? 0;
 
   return (
     <div className="page">
-      <PageHeader title="Manufacturing" subtitle="Open an order to update its production status." />
+      <PageHeader
+        title="Manufacturing"
+        subtitle={orders.data ? `${count} ${count === 1 ? 'order' : 'orders'} · earliest delivery first` : undefined}
+        actions={
+          <button type="button" className="button button--secondary" onClick={orders.reload}>
+            Refresh
+          </button>
+        }
+      />
 
       <div className="toolbar">
-        <SegmentedControl label="Filter orders" options={FILTERS} value={filter} onChange={setFilter} />
-        <button type="button" className="button button--ghost" onClick={orders.reload}>
-          Refresh
-        </button>
+        <SegmentedControl label="Show orders" options={FILTERS} value={filter} onChange={setFilter} variant="filter" />
       </div>
 
       {orders.error && <Alert>{orders.error}</Alert>}
@@ -40,39 +48,41 @@ export function ManufacturingPage() {
       {orders.loading && !orders.data ? (
         <LoadingState />
       ) : orders.data && orders.data.length === 0 ? (
-        <EmptyState title="No orders here" />
+        <EmptyState title={filter === 'active' ? 'Nothing in production right now.' : 'No orders here.'} />
       ) : (
-        <div className="order-cards">
+        <ul className="panel row-list">
           {orders.data?.map((order) => {
-            const done = order.status === 'ready_to_shipment';
+            const done = order.status === FINAL_STATUS;
             return (
-              <Link key={order._id} to={`/manufacturing/${order._id}`} className="card order-card">
-                <div className="order-card__top">
-                  <span className="order-card__number">{order.orderNumber}</span>
-                  <StatusBadge status={order.status} />
-                </div>
-                <div className="order-card__size">{formatSize(order.size)}</div>
-                <div className="order-card__meta">
-                  <span>{formatPly(order)}</span>
-                  <span>{formatPaper(order)}</span>
-                  {order.laminated && <span>Laminated</span>}
-                </div>
-                <div className="order-card__bottom">
-                  <span>
-                    <strong>{formatNumber(order.quantity)}</strong> ordered
-                    {order.producedQuantity !== null && (
-                      <>
-                        {' · '}
-                        <strong>{formatNumber(order.producedQuantity)}</strong> produced
-                      </>
-                    )}
-                  </span>
-                  <DueLabel date={order.expectedDeliveryDate} done={done} />
-                </div>
-              </Link>
+              <li key={order._id}>
+                <Link to={`/manufacturing/${order._id}`} className="row-item row-item--wide">
+                  <div className="row-item__main">
+                    <div className="row-item__line">
+                      <span className="row-title">{order.orderNumber}</span>
+                      <span className="row-item__figure num">
+                        {formatNumber(order.quantity)} boxes
+                        {order.producedQuantity !== null && (
+                          <span className="subline"> · {formatNumber(order.producedQuantity)} made</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="row-item__spec">{specSummary(order)}</div>
+                    <div className="row-item__sub">
+                      <DueLabel date={order.expectedDeliveryDate} done={done} />
+                    </div>
+                    <div className="show-phone">
+                      <StageProgress status={order.status} compact />
+                    </div>
+                  </div>
+                  <div className="row-item__side">
+                    <StageProgress status={order.status} />
+                  </div>
+                  <Icon name="chevron" size={18} className="row-item__chevron" />
+                </Link>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </div>
   );

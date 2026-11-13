@@ -32,10 +32,12 @@ export function CustomerForm({
   customer,
   onSaved,
   onCancel,
+  onDelete,
 }: {
   customer?: Customer;
   onSaved: (customer: Customer) => void;
   onCancel: () => void;
+  onDelete?: () => void;
 }) {
   const [values, setValues] = useState<CustomerInput>(
     customer
@@ -117,7 +119,12 @@ export function CustomerForm({
       </Field>
 
       <div className="form-actions">
-        <button type="button" className="button button--ghost" onClick={onCancel}>
+        {onDelete && (
+          <button type="button" className="button button--danger-text form-actions__left" onClick={onDelete}>
+            Delete
+          </button>
+        )}
+        <button type="button" className="button button--secondary" onClick={onCancel}>
           Cancel
         </button>
         <button type="submit" className="button button--primary" disabled={saving}>

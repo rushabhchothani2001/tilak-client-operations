@@ -48,17 +48,9 @@ export function LoginPage() {
   return (
     <div className="login">
       <div className="login__panel">
-        <div className="login__brand">
-          <span className="brand__mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8" />
-            </svg>
-          </span>
-          <div>
-            <h1>Tilak Industries</h1>
-            <p className="muted">Sign in to continue</p>
-          </div>
-        </div>
+        <img className="login__logo" src="/logo.png" alt="Tilak Industries" width={168} height={89} />
+        <h1 className="login__title">Log in</h1>
+        <p className="login__subtitle">Orders, production and customers.</p>
 
         <form className="form" onSubmit={handleSubmit} noValidate>
           {sessionExpired && !error && <Alert>Your session has expired. Please log in again.</Alert>}
@@ -89,7 +81,7 @@ export function LoginPage() {
           </button>
         </form>
 
-        <p className="login__footnote muted small">Forgot your password? Ask the admin to reset it.</p>
+        <p className="login__footnote">Forgot your password? Ask the admin to reset it.</p>
       </div>
     </div>
   );

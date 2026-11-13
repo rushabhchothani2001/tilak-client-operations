@@ -14,10 +14,10 @@ export function StatusTimeline({ history }: { history: StatusHistoryEntry[] }) {
           {entry.producedQuantity != null && (
             <span className="timeline__note">Produced {formatNumber(entry.producedQuantity)}</span>
           )}
-          <time className="timeline__time" dateTime={entry.changedAt}>
-            {formatDateTime(entry.changedAt)}
-            {entry.changedBy ? ` · by ${entry.changedBy}` : ''}
-          </time>
+          <span className="timeline__time">
+            <time dateTime={entry.changedAt}>{formatDateTime(entry.changedAt)}</time>
+            {entry.changedBy ? ` · ${entry.changedBy}` : ''}
+          </span>
         </li>
       ))}
     </ol>

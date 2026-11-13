@@ -1,23 +1,35 @@
 import { ReactNode, useEffect } from 'react';
-import type { OrderStatus } from '../types';
+import { Link } from 'react-router-dom';
+import { FINAL_STATUS, WORKER_STATUSES, type OrderStatus } from '../types';
 import { STATUS_LABELS } from '../lib/labels';
+import { Icon } from './icons';
 
 export function PageHeader({
   title,
   subtitle,
   actions,
+  back,
 }: {
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   actions?: ReactNode;
+  back?: { to: string; label: string };
 }) {
   return (
     <header className="page-header">
-      <div>
-        <h1>{title}</h1>
-        {subtitle && <p className="page-header__subtitle">{subtitle}</p>}
+      {back && (
+        <Link to={back.to} className="back-link">
+          <Icon name="back" size={16} />
+          {back.label}
+        </Link>
+      )}
+      <div className="page-header__row">
+        <div className="page-header__text">
+          <h1>{title}</h1>
+          {subtitle && <p className="page-header__subtitle">{subtitle}</p>}
+        </div>
+        {actions && <div className="page-header__actions">{actions}</div>}
       </div>
-      {actions && <div className="page-header__actions">{actions}</div>}
     </header>
   );
 }
@@ -57,20 +69,23 @@ interface Option<T extends string> {
   label: string;
 }
 
-/** Button group for picking exactly one option. */
+/** A row of buttons for picking exactly one option. */
 export function SegmentedControl<T extends string>({
   label,
   options,
   value,
   onChange,
+  variant = 'choice',
 }: {
   label: string;
   options: readonly Option<T>[];
   value: T | null;
   onChange: (value: T) => void;
+  /** "choice" for form answers, "filter" for list filters. */
+  variant?: 'choice' | 'filter';
 }) {
   return (
-    <div className="segmented" role="radiogroup" aria-label={label}>
+    <div className={`segmented segmented--${variant}`} role="radiogroup" aria-label={label}>
       {options.map((option) => {
         const selected = option.value === value;
         return (
@@ -90,24 +105,46 @@ export function SegmentedControl<T extends string>({
   );
 }
 
-const STATUS_TONE: Record<OrderStatus, string> = {
-  order_placed: 'neutral',
-  paper_cutting_in_process: 'progress',
-  paper_import_from_outside: 'warning',
-  liner_in_process: 'progress',
-  liner_process_completed: 'progress',
-  packaging_in_process: 'progress',
-  ready_to_shipment: 'success',
-};
+/** How many of the six production steps are done for a status. */
+export function stagesDone(status: OrderStatus): number {
+  return status === 'order_placed' ? 0 : WORKER_STATUSES.indexOf(status as (typeof WORKER_STATUSES)[number]) + 1;
+}
+
+/** The order's journey through the factory: its status and six steps, filled up to where it is. */
+export function StageProgress({ status, compact = false }: { status: OrderStatus; compact?: boolean }) {
+  const done = stagesDone(status);
+  const complete = status === FINAL_STATUS;
+  return (
+    <div className={`stage ${compact ? 'stage--compact' : ''}`}>
+      <span className="stage__label">{STATUS_LABELS[status]}</span>
+      <span
+        className="stage__bar"
+        role="img"
+        aria-label={`Step ${done} of ${WORKER_STATUSES.length}`}
+      >
+        {WORKER_STATUSES.map((s, i) => (
+          <i key={s} className={i < done ? (complete ? 'is-complete' : 'is-done') : undefined} />
+        ))}
+      </span>
+    </div>
+  );
+}
 
 export function StatusBadge({ status }: { status: OrderStatus }) {
-  return <span className={`badge badge--${STATUS_TONE[status]}`}>{STATUS_LABELS[status]}</span>;
+  const tone = status === 'order_placed' ? 'waiting' : status === FINAL_STATUS ? 'complete' : 'progress';
+  return (
+    <span className={`badge badge--${tone}`}>
+      <span className="badge__dot" aria-hidden="true" />
+      {STATUS_LABELS[status]}
+    </span>
+  );
 }
 
 export function Alert({ tone = 'error', children }: { tone?: 'error' | 'success'; children: ReactNode }) {
   return (
     <div className={`alert alert--${tone}`} role={tone === 'error' ? 'alert' : 'status'}>
-      {children}
+      {tone === 'success' && <Icon name="check" size={18} />}
+      <div className="alert__body">{children}</div>
     </div>
   );
 }
@@ -139,7 +176,12 @@ export function Modal({
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const { overflow } = document.body.style;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = overflow;
+    };
   }, [onClose]);
 
   return (
@@ -148,7 +190,7 @@ export function Modal({
         <div className="modal__header">
           <h2>{title}</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
-            ×
+            <Icon name="close" size={20} />
           </button>
         </div>
         {children}
@@ -161,25 +203,27 @@ export function Modal({
 export function QuantityCompare({ ordered, produced }: { ordered: number; produced: number | null }) {
   const diff = produced === null ? null : produced - ordered;
   return (
-    <div className="qty-compare">
+    <dl className="qty-compare">
       <div className="qty-compare__cell">
-        <span className="qty-compare__label">Ordered</span>
-        <span className="qty-compare__value">{ordered.toLocaleString('en-IN')}</span>
+        <dt>Ordered</dt>
+        <dd className="num">{ordered.toLocaleString('en-IN')}</dd>
       </div>
       <div className="qty-compare__cell">
-        <span className="qty-compare__label">Produced</span>
-        <span className="qty-compare__value">{produced === null ? '—' : produced.toLocaleString('en-IN')}</span>
+        <dt>Produced</dt>
+        <dd className="num">{produced === null ? <span className="dash">—</span> : produced.toLocaleString('en-IN')}</dd>
       </div>
       <div className="qty-compare__cell">
-        <span className="qty-compare__label">Difference</span>
-        <span
-          className={`qty-compare__value ${
-            diff === null ? '' : diff < 0 ? 'is-short' : diff > 0 ? 'is-extra' : 'is-exact'
-          }`}
-        >
-          {diff === null ? '—' : diff === 0 ? 'Exact' : `${diff > 0 ? '+' : ''}${diff.toLocaleString('en-IN')}`}
-        </span>
+        <dt>Difference</dt>
+        <dd className={`num ${diff !== null && diff < 0 ? 'is-short' : ''}`}>
+          {diff === null ? (
+            <span className="dash">—</span>
+          ) : diff === 0 ? (
+            'Exact'
+          ) : (
+            `${diff > 0 ? '+' : '−'}${Math.abs(diff).toLocaleString('en-IN')}`
+          )}
+        </dd>
       </div>
-    </div>
+    </dl>
   );
 }

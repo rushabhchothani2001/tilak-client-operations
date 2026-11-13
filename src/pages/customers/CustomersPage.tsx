@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { customersApi } from '../../api';
 import { errorMessage } from '../../api/http';
+import { Icon } from '../../components/icons';
 import { Alert, EmptyState, LoadingState, Modal, PageHeader } from '../../components/ui';
 import { useAsync } from '../../lib/useAsync';
 import type { Customer } from '../../types';
 import { CustomerForm } from './CustomerForm';
 
 type Editing = { mode: 'create' } | { mode: 'edit'; customer: Customer } | null;
+
+const telHref = (phone: string) => `tel:${phone.replace(/[^+\d]/g, '')}`;
 
 export function CustomersPage() {
   const [searchInput, setSearchInput] = useState('');
@@ -35,20 +38,25 @@ export function CustomersPage() {
     try {
       await customersApi.remove(customer._id);
       setMessage({ tone: 'success', text: `${customer.name} deleted.` });
+      setEditing(null);
       customers.reload();
     } catch (error) {
+      setEditing(null);
       setMessage({ tone: 'error', text: errorMessage(error) });
     }
   };
+
+  const count = customers.data?.length ?? 0;
 
   return (
     <div className="page">
       <PageHeader
         title="Customers"
-        subtitle="Customer contact, GST and address details."
+        subtitle={customers.data ? `${count} ${count === 1 ? 'customer' : 'customers'}${search ? ' found' : ''}` : undefined}
         actions={
           <button type="button" className="button button--primary" onClick={() => setEditing({ mode: 'create' })}>
-            + Add Customer
+            <Icon name="plus" size={18} />
+            Add customer
           </button>
         }
       />
@@ -56,13 +64,16 @@ export function CustomersPage() {
       {message && <Alert tone={message.tone}>{message.text}</Alert>}
 
       <div className="toolbar">
-        <input
-          type="search"
-          className="toolbar__search"
-          placeholder="Search by name, company, phone or GST"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-        />
+        <label className="search">
+          <Icon name="search" size={16} />
+          <span className="visually-hidden">Search customers</span>
+          <input
+            type="search"
+            placeholder="Search name, company, phone or GST"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+        </label>
       </div>
 
       {customers.error && <Alert>{customers.error}</Alert>}
@@ -70,7 +81,7 @@ export function CustomersPage() {
       {customers.loading && !customers.data ? (
         <LoadingState />
       ) : customers.data && customers.data.length === 0 ? (
-        <EmptyState title={search ? 'No customers match your search' : 'No customers yet'}>
+        <EmptyState title={search ? 'No customers match your search.' : 'No customers yet.'}>
           {!search && (
             <button type="button" className="button button--primary" onClick={() => setEditing({ mode: 'create' })}>
               Add the first customer
@@ -79,13 +90,12 @@ export function CustomersPage() {
         </EmptyState>
       ) : (
         customers.data && (
-          <div className="card table-wrap">
-            <table className="table">
+          <div className="panel">
+            <table className="table hide-phone">
               <thead>
                 <tr>
                   <th>Customer</th>
                   <th>Phone</th>
-                  <th>Helpline</th>
                   <th>GST number</th>
                   <th>Address</th>
                   <th aria-label="Actions" />
@@ -95,25 +105,44 @@ export function CustomersPage() {
                 {customers.data.map((c) => (
                   <tr key={c._id}>
                     <td>
-                      <div className="strong">{c.name}</div>
-                      {c.companyName && <div className="muted small">{c.companyName}</div>}
+                      <div className="row-title">{c.name}</div>
+                      {c.companyName && <div className="subline">{c.companyName}</div>}
                     </td>
-                    <td className="nowrap">{c.phone}</td>
-                    <td className="nowrap">{c.helplinePhone || <span className="muted">—</span>}</td>
-                    <td className="mono">{c.gstNumber || <span className="muted">—</span>}</td>
-                    <td className="address-cell">{c.address || <span className="muted">—</span>}</td>
+                    <td className="nowrap">
+                      <div>{c.phone}</div>
+                      {c.helplinePhone && <div className="subline">{c.helplinePhone}</div>}
+                    </td>
+                    <td className="nowrap tabular">{c.gstNumber || <span className="dash">—</span>}</td>
+                    <td className="address-cell">{c.address || <span className="dash">—</span>}</td>
                     <td className="row-actions">
                       <button type="button" className="link-button" onClick={() => setEditing({ mode: 'edit', customer: c })}>
                         Edit
-                      </button>
-                      <button type="button" className="link-button link-button--danger" onClick={() => handleDelete(c)}>
-                        Delete
                       </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+
+            <ul className="row-list show-phone">
+              {customers.data.map((c) => (
+                <li key={c._id} className="row-item">
+                  <button
+                    type="button"
+                    className="row-item__main row-item__button"
+                    onClick={() => setEditing({ mode: 'edit', customer: c })}
+                  >
+                    <span className="row-title">{c.name}</span>
+                    <span className="row-item__sub">
+                      {[c.companyName, c.gstNumber].filter(Boolean).join(' · ') || 'No company or GST'}
+                    </span>
+                  </button>
+                  <a className="button button--secondary button--icon" href={telHref(c.phone)} aria-label={`Call ${c.name}`}>
+                    <Icon name="phone" size={18} />
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
         )
       )}
@@ -124,6 +153,7 @@ export function CustomersPage() {
             customer={editing.mode === 'edit' ? editing.customer : undefined}
             onSaved={handleSaved}
             onCancel={() => setEditing(null)}
+            onDelete={editing.mode === 'edit' ? () => handleDelete(editing.customer) : undefined}
           />
         </Modal>
       )}

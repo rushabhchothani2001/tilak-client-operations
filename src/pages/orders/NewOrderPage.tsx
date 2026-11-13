@@ -134,19 +134,15 @@ export function NewOrderPage() {
   return (
     <div className="page page--narrow">
       <PageHeader
-        title="New Order"
-        subtitle="Fill in the box details and place the order."
-        actions={
-          <Link to="/orders" className="button button--ghost">
-            Back to orders
-          </Link>
-        }
+        back={{ to: '/orders', label: 'Orders' }}
+        title="New order"
+        subtitle="Choose the customer, describe the box, and place the order."
       />
 
       <form className="form" onSubmit={handleSubmit} noValidate>
         {submitError && <Alert>{submitError}</Alert>}
 
-        <section className="card form-section">
+        <section className="panel form-section">
           <h2 className="form-section__title">Customer</h2>
           <Field label="Select customer" htmlFor="customer" error={errors.customer}>
             <select
@@ -172,33 +168,33 @@ export function NewOrderPage() {
           )}
         </section>
 
-        <section className="card form-section">
+        <section className="panel form-section">
           <h2 className="form-section__title">Box details</h2>
 
-          <Field label="Size (Length × Width × Height)">
-            <div className="size-row">
-              {(['length', 'width', 'height'] as const).map((dim) => (
-                <div className={`size-row__cell ${errors[`size.${dim}`] ? 'field--error' : ''}`} key={dim}>
-                  <input
-                    id={dim}
-                    type="number"
-                    inputMode="decimal"
-                    min="0"
-                    step="any"
-                    placeholder={dim[0].toUpperCase() + dim.slice(1)}
-                    aria-label={dim}
-                    value={form[dim]}
-                    onChange={(e) => set(dim, e.target.value, `size.${dim}`)}
-                  />
-                  {errors[`size.${dim}`] && <p className="field__error">{errors[`size.${dim}`]}</p>}
-                </div>
-              ))}
-              <select
-                aria-label="Unit"
-                className="size-row__unit"
-                value={form.unit}
-                onChange={(e) => set('unit', e.target.value as SizeUnit)}
-              >
+          <fieldset className="size-row">
+            <legend className="field__label">Size</legend>
+            {(['length', 'width', 'height'] as const).map((dim) => (
+              <div className={`field ${errors[`size.${dim}`] ? 'field--error' : ''}`} key={dim}>
+                <label className="field__sublabel" htmlFor={dim}>
+                  {dim[0].toUpperCase() + dim.slice(1)}
+                </label>
+                <input
+                  id={dim}
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="any"
+                  value={form[dim]}
+                  onChange={(e) => set(dim, e.target.value, `size.${dim}`)}
+                />
+                {errors[`size.${dim}`] && <p className="field__error">{errors[`size.${dim}`]}</p>}
+              </div>
+            ))}
+            <div className="field">
+              <label className="field__sublabel" htmlFor="unit">
+                Unit
+              </label>
+              <select id="unit" value={form.unit} onChange={(e) => set('unit', e.target.value as SizeUnit)}>
                 {toOptions(UNIT_LABELS).map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
@@ -206,7 +202,7 @@ export function NewOrderPage() {
                 ))}
               </select>
             </div>
-          </Field>
+          </fieldset>
 
           <div className="grid-2">
             <Field label="Box type" error={errors.ply}>
@@ -232,7 +228,7 @@ export function NewOrderPage() {
           </div>
         </section>
 
-        <section className="card form-section">
+        <section className="panel form-section">
           <h2 className="form-section__title">Paper</h2>
 
           <div className="grid-2">
@@ -288,7 +284,7 @@ export function NewOrderPage() {
           </div>
         </section>
 
-        <section className="card form-section">
+        <section className="panel form-section">
           <h2 className="form-section__title">Quantity &amp; delivery</h2>
           <div className="grid-2">
             <Field label="Quantity (boxes)" htmlFor="quantity" error={errors.quantity}>
@@ -315,11 +311,19 @@ export function NewOrderPage() {
         </section>
 
         <div className="form-actions">
-          <button type="button" className="button button--ghost" onClick={() => { setForm(INITIAL); setErrors({}); setSubmitError(null); }}>
-            Clear form
+          <button
+            type="button"
+            className="button button--secondary button--lg"
+            onClick={() => {
+              setForm(INITIAL);
+              setErrors({});
+              setSubmitError(null);
+            }}
+          >
+            Clear
           </button>
           <button type="submit" className="button button--primary button--lg" disabled={submitting}>
-            {submitting ? 'Placing order…' : 'Place Order'}
+            {submitting ? 'Placing order…' : 'Place order'}
           </button>
         </div>
       </form>

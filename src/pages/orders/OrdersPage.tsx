@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ordersApi } from '../../api';
-import { Alert, EmptyState, LoadingState, PageHeader, StatusBadge } from '../../components/ui';
-import { formatDate, formatNumber, formatPaper, formatPly, formatSize } from '../../lib/format';
+import { Icon } from '../../components/icons';
+import { specSummary } from '../../components/OrderSpecList';
+import { Alert, EmptyState, LoadingState, PageHeader, StageProgress } from '../../components/ui';
+import { formatDate, formatNumber, formatSize, formatPly, formatPaper } from '../../lib/format';
 import { STATUS_LABELS } from '../../lib/labels';
 import { useAsync } from '../../lib/useAsync';
 import { ORDER_STATUSES, type OrderStatus } from '../../types';
@@ -19,14 +21,17 @@ export function OrdersPage() {
     if (location.state) navigate(location.pathname, { replace: true, state: null });
   }, [location, navigate]);
 
+  const count = orders.data?.length ?? 0;
+
   return (
     <div className="page">
       <PageHeader
         title="Orders"
-        subtitle="All customer orders and their production progress."
+        subtitle={orders.data ? `${count} ${count === 1 ? 'order' : 'orders'}${status ? ` · ${STATUS_LABELS[status]}` : ''}` : undefined}
         actions={
           <Link to="/orders/new" className="button button--primary">
-            + New Order
+            <Icon name="plus" size={18} />
+            New order
           </Link>
         }
       />
@@ -41,8 +46,8 @@ export function OrdersPage() {
       )}
 
       <div className="toolbar">
-        <label className="toolbar__filter">
-          <span>Status</span>
+        <label className="select-filter">
+          <span className="visually-hidden">Filter by status</span>
           <select value={status} onChange={(e) => setStatus(e.target.value as OrderStatus | '')}>
             <option value="">All statuses</option>
             {ORDER_STATUSES.map((s) => (
@@ -59,7 +64,7 @@ export function OrdersPage() {
       {orders.loading && !orders.data ? (
         <LoadingState />
       ) : orders.data && orders.data.length === 0 ? (
-        <EmptyState title={status ? 'No orders with this status' : 'No orders yet'}>
+        <EmptyState title={status ? 'No orders with this status.' : 'No orders yet.'}>
           {!status && (
             <Link to="/orders/new" className="button button--primary">
               Place the first order
@@ -68,25 +73,25 @@ export function OrdersPage() {
         </EmptyState>
       ) : (
         orders.data && (
-          <div className="card table-wrap">
-            <table className="table">
+          <div className="panel">
+            {/* Desktop and tablet */}
+            <table className="table hide-phone">
               <thead>
                 <tr>
                   <th>Order</th>
                   <th>Customer</th>
-                  <th>Size</th>
-                  <th>Box / Paper</th>
+                  <th>Box</th>
                   <th className="num">Ordered</th>
                   <th className="num">Produced</th>
-                  <th>Delivery</th>
-                  <th>Status</th>
+                  <th className="num">Delivery</th>
+                  <th>Progress</th>
                 </tr>
               </thead>
               <tbody>
                 {orders.data.map((order) => (
                   <tr key={order._id} className="table__row-link" onClick={() => navigate(`/orders/${order._id}`)}>
                     <td className="nowrap">
-                      <Link to={`/orders/${order._id}`} className="strong" onClick={(e) => e.stopPropagation()}>
+                      <Link to={`/orders/${order._id}`} className="row-title" onClick={(e) => e.stopPropagation()}>
                         {order.orderNumber}
                       </Link>
                     </td>
@@ -94,30 +99,53 @@ export function OrdersPage() {
                       {order.customer ? (
                         <>
                           <div>{order.customer.name}</div>
-                          {order.customer.companyName && <div className="muted small">{order.customer.companyName}</div>}
+                          {order.customer.companyName && <div className="subline">{order.customer.companyName}</div>}
                         </>
                       ) : (
-                        <span className="muted">—</span>
+                        <span className="dash">—</span>
                       )}
                     </td>
-                    <td className="nowrap">{formatSize(order.size)}</td>
                     <td>
-                      <div>{formatPly(order)}</div>
-                      <div className="muted small">
-                        {formatPaper(order)}
+                      <div className="nowrap">{formatSize(order.size)}</div>
+                      <div className="subline">
+                        {formatPly(order)} · {formatPaper(order)}
                         {order.laminated ? ' · Laminated' : ''}
                       </div>
                     </td>
                     <td className="num">{formatNumber(order.quantity)}</td>
-                    <td className="num">{order.producedQuantity === null ? '—' : formatNumber(order.producedQuantity)}</td>
-                    <td className="nowrap">{formatDate(order.expectedDeliveryDate)}</td>
+                    <td className="num">
+                      {order.producedQuantity === null ? <span className="dash">—</span> : formatNumber(order.producedQuantity)}
+                    </td>
+                    <td className="num nowrap">{formatDate(order.expectedDeliveryDate)}</td>
                     <td>
-                      <StatusBadge status={order.status} />
+                      <StageProgress status={order.status} />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+
+            {/* Phone */}
+            <ul className="row-list show-phone">
+              {orders.data.map((order) => (
+                <li key={order._id}>
+                  <Link to={`/orders/${order._id}`} className="row-item">
+                    <div className="row-item__main">
+                      <div className="row-item__line">
+                        <span className="row-title">{order.orderNumber}</span>
+                        <span className="row-item__figure num">{formatNumber(order.quantity)} boxes</span>
+                      </div>
+                      <div className="row-item__sub">
+                        {order.customer?.name ?? '—'} · Due {formatDate(order.expectedDeliveryDate)}
+                      </div>
+                      <div className="row-item__sub">{specSummary(order)}</div>
+                      <StageProgress status={order.status} compact />
+                    </div>
+                    <Icon name="chevron" size={18} className="row-item__chevron" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
         )
       )}

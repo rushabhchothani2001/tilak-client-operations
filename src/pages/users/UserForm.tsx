@@ -101,7 +101,7 @@ export function UserForm({
           hint={role === 'admin' ? 'Full access to all modules' : 'Manufacturing module only'}
         >
           {isSelf ? (
-            <p className="muted small">You can't change your own role.</p>
+            <p className="note">You can't change your own role.</p>
           ) : (
             <SegmentedControl label="Role" options={toOptions(ROLE_LABELS)} value={role} onChange={setRole} />
           )}
@@ -110,7 +110,7 @@ export function UserForm({
         {editing && (
           <Field label="Account status" hint={active ? 'Can log in' : 'Cannot log in'}>
             {isSelf ? (
-              <p className="muted small">You can't disable your own account.</p>
+              <p className="note">You can't disable your own account.</p>
             ) : (
               <SegmentedControl
                 label="Account status"
@@ -142,7 +142,7 @@ export function UserForm({
       </Field>
 
       <div className="form-actions">
-        <button type="button" className="button button--ghost" onClick={onCancel}>
+        <button type="button" className="button button--secondary" onClick={onCancel}>
           Cancel
         </button>
         <button type="submit" className="button button--primary" disabled={saving}>

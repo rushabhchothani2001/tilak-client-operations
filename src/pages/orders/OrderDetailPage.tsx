@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ordersApi } from '../../api';
 import { errorMessage } from '../../api/http';
-import { OrderSpecList } from '../../components/OrderSpecList';
+import { OrderSpecList, specSummary } from '../../components/OrderSpecList';
 import { StatusTimeline } from '../../components/StatusTimeline';
-import { Alert, LoadingState, PageHeader, QuantityCompare, StatusBadge } from '../../components/ui';
+import { Alert, LoadingState, PageHeader, QuantityCompare, StageProgress } from '../../components/ui';
 import { formatDateTime } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
 
@@ -29,8 +29,8 @@ export function OrderDetailPage() {
   if (order.error || !order.data)
     return (
       <div className="page">
+        <PageHeader title="Order" back={{ to: '/orders', label: 'Orders' }} />
         <Alert>{order.error ?? 'Order not found'}</Alert>
-        <Link to="/orders">Back to orders</Link>
       </div>
     );
 
@@ -40,40 +40,34 @@ export function OrderDetailPage() {
   return (
     <div className="page">
       <PageHeader
+        back={{ to: '/orders', label: 'Orders' }}
         title={`Order ${o.orderNumber}`}
-        subtitle={`Placed ${formatDateTime(o.createdAt)}`}
+        subtitle={`${specSummary(o)} · Placed ${formatDateTime(o.createdAt)}`}
         actions={
-          <>
-            <Link to="/orders" className="button button--ghost">
-              Back
-            </Link>
-            <button type="button" className="button button--danger-ghost" onClick={handleDelete}>
-              Delete
-            </button>
-          </>
+          <button type="button" className="button button--danger-text" onClick={handleDelete}>
+            Delete
+          </button>
         }
       />
       {deleteError && <Alert>{deleteError}</Alert>}
 
       <div className="detail-grid">
         <div className="stack">
-          <section className="card card--padded">
-            <div className="card__head">
-              <h2>Box specification</h2>
-              <StatusBadge status={o.status} />
-            </div>
-            <OrderSpecList order={o} />
+          <section className="panel panel--padded">
+            <h2 className="panel__title">Production</h2>
+            <StageProgress status={o.status} />
+            <QuantityCompare ordered={o.quantity} produced={o.producedQuantity} />
           </section>
 
-          <section className="card card--padded">
-            <h2>Quantity</h2>
-            <QuantityCompare ordered={o.quantity} produced={o.producedQuantity} />
+          <section className="panel panel--padded">
+            <h2 className="panel__title">Box specification</h2>
+            <OrderSpecList order={o} />
           </section>
         </div>
 
         <div className="stack">
-          <section className="card card--padded">
-            <h2>Customer</h2>
+          <section className="panel panel--padded">
+            <h2 className="panel__title">Customer</h2>
             {customer ? (
               <dl className="spec-list">
                 {[
@@ -86,7 +80,15 @@ export function OrderDetailPage() {
                 ].map(([label, value]) => (
                   <div className="spec-list__row" key={label}>
                     <dt>{label}</dt>
-                    <dd>{value || '—'}</dd>
+                    <dd>
+                      {!value ? (
+                        <span className="dash">—</span>
+                      ) : label.includes('hone') ? (
+                        <a href={`tel:${value.replace(/[^+\d]/g, '')}`}>{value}</a>
+                      ) : (
+                        value
+                      )}
+                    </dd>
                   </div>
                 ))}
               </dl>
@@ -95,8 +97,8 @@ export function OrderDetailPage() {
             )}
           </section>
 
-          <section className="card card--padded">
-            <h2>Status history</h2>
+          <section className="panel panel--padded">
+            <h2 className="panel__title">Status history</h2>
             <StatusTimeline history={o.statusHistory} />
           </section>
         </div>

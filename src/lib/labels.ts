@@ -1,18 +1,18 @@
 import type { BoxPly, OrderStatus, PaperType, PrintType, SizeUnit } from '../types';
 
 export const STATUS_LABELS: Record<OrderStatus, string> = {
-  order_placed: 'Order Placed',
-  paper_cutting_in_process: 'Paper Cutting In Process',
-  paper_import_from_outside: 'Paper Import From Outside',
-  liner_in_process: 'Liner In Process',
-  liner_process_completed: 'Liner Process Completed',
-  packaging_in_process: 'Packaging In Process',
-  ready_to_shipment: 'Ready for Shipment',
+  order_placed: 'Order placed',
+  paper_cutting_in_process: 'Paper cutting in process',
+  paper_import_from_outside: 'Paper import from outside',
+  liner_in_process: 'Liner in process',
+  liner_process_completed: 'Liner process completed',
+  packaging_in_process: 'Packaging in process',
+  ready_to_shipment: 'Ready for shipment',
 };
 
 export const PLY_LABELS: Record<BoxPly, string> = {
-  '3-ply': '3 Ply',
-  '5-ply': '5 Ply',
+  '3-ply': '3 ply',
+  '5-ply': '5 ply',
 };
 
 export const PAPER_LABELS: Record<PaperType, string> = {
@@ -21,8 +21,8 @@ export const PAPER_LABELS: Record<PaperType, string> = {
 };
 
 export const PRINT_LABELS: Record<PrintType, string> = {
-  '4-color': '4 Color',
-  'single-color': 'Single Color',
+  '4-color': '4 colour',
+  'single-color': 'Single colour',
 };
 
 export const UNIT_LABELS: Record<SizeUnit, string> = {

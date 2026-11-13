@@ -1,16 +1,23 @@
 import type { OrderSpec } from '../types';
 import { formatDate, formatFluted, formatNumber, formatPaper, formatPly, formatSize } from '../lib/format';
 
+/** One-line summary of an order's box: "14 × 10 × 8 inch · 3 Ply · Plain · Laminated". */
+export function specSummary(order: OrderSpec) {
+  return [formatSize(order.size), formatPly(order), formatPaper(order), order.laminated ? 'Laminated' : null]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 /** The box specification of an order. Contains no customer information. */
 export function OrderSpecList({ order }: { order: OrderSpec }) {
   const rows: [string, string][] = [
     ['Size (L × W × H)', formatSize(order.size)],
     ['Box type', formatPly(order)],
     ['Paper', formatPaper(order)],
-    ['Inside paper — Top', String(order.insidePaper.top)],
-    ['Inside paper — Fluted', formatFluted(order.insidePaper.fluted)],
+    ['Inside paper — top', String(order.insidePaper.top)],
+    ['Inside paper — fluted', formatFluted(order.insidePaper.fluted)],
     ['Laminated', order.laminated ? 'Yes' : 'No'],
-    ['Quantity', formatNumber(order.quantity)],
+    ['Quantity', `${formatNumber(order.quantity)} boxes`],
     ['Expected delivery', formatDate(order.expectedDeliveryDate)],
   ];
 
