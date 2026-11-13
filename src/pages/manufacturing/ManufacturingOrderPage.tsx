@@ -89,7 +89,14 @@ export function ManufacturingOrderPage() {
       <PageHeader
         back={{ to: '/manufacturing', label: 'Manufacturing' }}
         title={`Order ${o.orderNumber}`}
-        subtitle={`${specSummary(o)} · ${o.quantity.toLocaleString('en-IN')} boxes · Due ${formatDate(o.expectedDeliveryDate)}`}
+        subtitle={[
+          o.productName,
+          specSummary(o),
+          `${o.quantity.toLocaleString('en-IN')} boxes`,
+          `Due ${formatDate(o.expectedDeliveryDate)}`,
+        ]
+          .filter(Boolean)
+          .join(' · ')}
       />
 
       <div className="detail-grid detail-grid--action-first">

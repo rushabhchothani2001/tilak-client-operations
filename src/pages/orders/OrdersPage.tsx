@@ -80,7 +80,7 @@ export function OrdersPage() {
                 <tr>
                   <th>Order</th>
                   <th>Customer</th>
-                  <th>Box</th>
+                  <th>Product</th>
                   <th className="num">Ordered</th>
                   <th className="num">Produced</th>
                   <th className="num">Delivery</th>
@@ -106,9 +106,9 @@ export function OrdersPage() {
                       )}
                     </td>
                     <td>
-                      <div className="nowrap">{formatSize(order.size)}</div>
+                      <div>{order.productName || <span className="dash">No product name</span>}</div>
                       <div className="subline">
-                        {formatPly(order)} · {formatPaper(order)}
+                        {formatSize(order.size)} · {formatPly(order)} · {formatPaper(order)}
                         {order.laminated ? ' · Laminated' : ''}
                       </div>
                     </td>
@@ -135,6 +135,7 @@ export function OrdersPage() {
                         <span className="row-title">{order.orderNumber}</span>
                         <span className="row-item__figure num">{formatNumber(order.quantity)} boxes</span>
                       </div>
+                      {order.productName && <div className="row-item__spec">{order.productName}</div>}
                       <div className="row-item__sub">
                         {order.customer?.name ?? '—'} · Due {formatDate(order.expectedDeliveryDate)}
                       </div>

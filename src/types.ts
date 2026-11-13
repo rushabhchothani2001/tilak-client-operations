@@ -51,6 +51,8 @@ export interface BoxSize {
 }
 
 export interface OrderSpec {
+  /** Empty on orders placed before the field existed. */
+  productName: string;
   size: BoxSize;
   ply: BoxPly;
   paperType: PaperType;

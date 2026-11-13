@@ -10,6 +10,7 @@ import type { BoxPly, OrderInput, PaperType, PrintType, SizeUnit } from '../../t
 
 interface FormState {
   customer: string;
+  productName: string;
   length: string;
   width: string;
   height: string;
@@ -26,6 +27,7 @@ interface FormState {
 
 const INITIAL: FormState = {
   customer: '',
+  productName: '',
   length: '',
   width: '',
   height: '',
@@ -49,6 +51,7 @@ const isNonNegative = (v: string) => v.trim() !== '' && Number(v) >= 0;
 function validate(form: FormState): Errors {
   const errors: Errors = {};
   if (!form.customer) errors.customer = 'Select a customer';
+  if (!form.productName.trim()) errors.productName = 'Enter the product name';
   if (!isPositive(form.length)) errors['size.length'] = 'Enter length';
   if (!isPositive(form.width)) errors['size.width'] = 'Enter width';
   if (!isPositive(form.height)) errors['size.height'] = 'Enter height';
@@ -69,6 +72,7 @@ function validate(form: FormState): Errors {
 function toInput(form: FormState): OrderInput {
   return {
     customer: form.customer,
+    productName: form.productName.trim(),
     size: {
       length: Number(form.length),
       width: Number(form.width),
@@ -143,7 +147,7 @@ export function NewOrderPage() {
         {submitError && <Alert>{submitError}</Alert>}
 
         <section className="panel form-section">
-          <h2 className="form-section__title">Customer</h2>
+          <h2 className="form-section__title">Customer &amp; product</h2>
           <Field label="Select customer" htmlFor="customer" error={errors.customer}>
             <select
               id="customer"
@@ -166,6 +170,17 @@ export function NewOrderPage() {
               No customers yet. <Link to="/customers">Add a customer</Link> first.
             </p>
           )}
+          <Field label="Product name" htmlFor="productName" error={errors.productName}>
+            <input
+              id="productName"
+              type="text"
+              autoComplete="off"
+              maxLength={120}
+              placeholder="e.g. Mango juice 1L carton"
+              value={form.productName}
+              onChange={(e) => set('productName', e.target.value)}
+            />
+          </Field>
         </section>
 
         <section className="panel form-section">

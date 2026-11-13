@@ -11,6 +11,7 @@ export function specSummary(order: OrderSpec) {
 /** The box specification of an order. Contains no customer information. */
 export function OrderSpecList({ order }: { order: OrderSpec }) {
   const rows: [string, string][] = [
+    ['Product', order.productName || '—'],
     ['Size (L × W × H)', formatSize(order.size)],
     ['Box type', formatPly(order)],
     ['Paper', formatPaper(order)],

@@ -42,7 +42,7 @@ export function OrderDetailPage() {
       <PageHeader
         back={{ to: '/orders', label: 'Orders' }}
         title={`Order ${o.orderNumber}`}
-        subtitle={`${specSummary(o)} · Placed ${formatDateTime(o.createdAt)}`}
+        subtitle={[o.productName, specSummary(o), `Placed ${formatDateTime(o.createdAt)}`].filter(Boolean).join(' · ')}
         actions={
           <button type="button" className="button button--danger-text" onClick={handleDelete}>
             Delete

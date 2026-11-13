@@ -66,7 +66,8 @@ export function ManufacturingPage() {
                         )}
                       </span>
                     </div>
-                    <div className="row-item__spec">{specSummary(order)}</div>
+                    {order.productName && <div className="row-item__spec">{order.productName}</div>}
+                    <div className={order.productName ? 'row-item__sub' : 'row-item__spec'}>{specSummary(order)}</div>
                     <div className="row-item__sub">
                       <DueLabel date={order.expectedDeliveryDate} done={done} />
                     </div>
