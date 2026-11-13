@@ -1,0 +1,106 @@
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ordersApi } from '../../api';
+import { errorMessage } from '../../api/http';
+import { OrderSpecList } from '../../components/OrderSpecList';
+import { StatusTimeline } from '../../components/StatusTimeline';
+import { Alert, LoadingState, PageHeader, QuantityCompare, StatusBadge } from '../../components/ui';
+import { formatDateTime } from '../../lib/format';
+import { useAsync } from '../../lib/useAsync';
+
+export function OrderDetailPage() {
+  const { id = '' } = useParams();
+  const navigate = useNavigate();
+  const order = useAsync(() => ordersApi.get(id), [id]);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDelete = async () => {
+    if (!order.data) return;
+    if (!window.confirm(`Delete order ${order.data.orderNumber}? This cannot be undone.`)) return;
+    try {
+      await ordersApi.remove(id);
+      navigate('/orders', { state: { flash: `Order ${order.data.orderNumber} deleted.` } });
+    } catch (error) {
+      setDeleteError(errorMessage(error));
+    }
+  };
+
+  if (order.loading && !order.data) return <LoadingState />;
+  if (order.error || !order.data)
+    return (
+      <div className="page">
+        <Alert>{order.error ?? 'Order not found'}</Alert>
+        <Link to="/orders">Back to orders</Link>
+      </div>
+    );
+
+  const o = order.data;
+  const customer = o.customer;
+
+  return (
+    <div className="page">
+      <PageHeader
+        title={`Order ${o.orderNumber}`}
+        subtitle={`Placed ${formatDateTime(o.createdAt)}`}
+        actions={
+          <>
+            <Link to="/orders" className="button button--ghost">
+              Back
+            </Link>
+            <button type="button" className="button button--danger-ghost" onClick={handleDelete}>
+              Delete
+            </button>
+          </>
+        }
+      />
+      {deleteError && <Alert>{deleteError}</Alert>}
+
+      <div className="detail-grid">
+        <div className="stack">
+          <section className="card card--padded">
+            <div className="card__head">
+              <h2>Box specification</h2>
+              <StatusBadge status={o.status} />
+            </div>
+            <OrderSpecList order={o} />
+          </section>
+
+          <section className="card card--padded">
+            <h2>Quantity</h2>
+            <QuantityCompare ordered={o.quantity} produced={o.producedQuantity} />
+          </section>
+        </div>
+
+        <div className="stack">
+          <section className="card card--padded">
+            <h2>Customer</h2>
+            {customer ? (
+              <dl className="spec-list">
+                {[
+                  ['Name', customer.name],
+                  ['Company', customer.companyName],
+                  ['Phone', customer.phone],
+                  ['Helpline phone', customer.helplinePhone],
+                  ['GST number', customer.gstNumber],
+                  ['Address', customer.address],
+                ].map(([label, value]) => (
+                  <div className="spec-list__row" key={label}>
+                    <dt>{label}</dt>
+                    <dd>{value || '—'}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="muted">Customer record not found.</p>
+            )}
+          </section>
+
+          <section className="card card--padded">
+            <h2>Status history</h2>
+            <StatusTimeline history={o.statusHistory} />
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
